@@ -14,6 +14,11 @@
 
 </script>
 
+<svelte:head>
+	<title>projects</title>
+	<meta name="description" content="my projects" />
+</svelte:head>
+
 <Header></Header>
 <div class="content">
     <h1>My Projects</h1>

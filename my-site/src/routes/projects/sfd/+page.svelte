@@ -4,6 +4,11 @@
     import {ArrowSquareOut} from "phosphor-svelte";
 </script>
 
+<svelte:head>
+	<title>projects/sfd</title>
+	<meta name="description" content="my project: shoreline family dentistry website" />
+</svelte:head>
+
 <Header></Header>
 <div class="content">
     <h1>Shoreline Family Dentistry Website</h1>

@@ -4,6 +4,11 @@
     import img_cmail from "$lib/assets/cmail.OhCrrboZ.avif"
 </script>
 
+<svelte:head>
+	<title>projects/cmail</title>
+	<meta name="description" content="my project: cmail" />
+</svelte:head>
+
 <Header></Header>
 <div class="content">
     <h1>cmail</h1>

@@ -2,6 +2,11 @@
     import Header from "../Header.svelte";
 </script>
 
+<svelte:head>
+	<title>posts</title>
+	<meta name="description" content="my posts" />
+</svelte:head>
+
 <Header></Header>
 <div class="content">
     <h1>My Posts</h1>

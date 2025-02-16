@@ -129,6 +129,11 @@
     }
 </script>
 
+<svelte:head>
+	<title>shibest</title>
+	<meta name="description" content="my personal website" />
+</svelte:head>
+
 <!--<canvas id="animation_box" width="980" height="1080" bind:this={canvas}>
     
 </canvas>-->

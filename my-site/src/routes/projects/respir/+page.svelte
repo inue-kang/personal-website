@@ -4,6 +4,11 @@
     import {ArrowSquareOut} from "phosphor-svelte";
 </script>
 
+<svelte:head>
+	<title>projects/respir</title>
+	<meta name="description" content="my project: respir" />
+</svelte:head>
+
 <Header></Header>
 <div class="content">
     <h1>respir</h1>

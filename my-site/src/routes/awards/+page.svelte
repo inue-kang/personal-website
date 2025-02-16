@@ -48,6 +48,11 @@
 
 </script>
 
+<svelte:head>
+	<title>awards</title>
+	<meta name="description" content="stuff I won" />
+</svelte:head>
+
 <Header></Header>
 
 <div class="content">

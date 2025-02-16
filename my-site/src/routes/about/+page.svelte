@@ -75,4 +75,25 @@
         color: orange;
         text-decoration: underline;
     }
+
+    /* width */
+    ::-webkit-scrollbar {
+        width: .8vw;
+    }
+
+    /* Track */
+    ::-webkit-scrollbar-track {
+        background: rgb(0,0,0,0);
+    }
+
+    /* Handle */
+    ::-webkit-scrollbar-thumb {
+        background-color: black;
+        border-radius: 1vh;
+    }
+
+    /* Handle on hover */
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: orange;
+    }
 </style>

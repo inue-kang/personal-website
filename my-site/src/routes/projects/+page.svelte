@@ -29,7 +29,7 @@
     <div class="projects">
         <div class="project" on:mouseenter={() => pinscout=true} on:mouseleave={() => pinscout=false} on:click={() => goto("/projects/pinscout")}>
             <h2>
-                pinscout
+                pinScout
                 {#if pinscout}
                     <b style="font-size: 2.8vh" in:fade={{ duration: 100 }} out:fade={{ duration: 100 }}>
                         ➔

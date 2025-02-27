@@ -1,12 +1,14 @@
 <script>
     import Header from "../Header.svelte";
     import { fade } from 'svelte/transition';
+    import img_pinscout from "$lib/assets/pinscout.C4CbqxjS.avif";
     import img_cmail from "$lib/assets/cmail.OhCrrboZ.avif"
     import img_papercut from "$lib/assets/papercut.BA6ec049.avif";
     import img_respir from "$lib/assets/respir.NzXN-C-F.avif";
     import img_sfd from "$lib/assets/sfd.png";
 	import { goto } from "$app/navigation";
 
+    let pinscout = false;
     let cmail = false;
     let papercut = false;
     let respir = false;
@@ -25,6 +27,19 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div class="projects">
+        <div class="project" on:mouseenter={() => pinscout=true} on:mouseleave={() => pinscout=false} on:click={() => goto("/projects/pinscout")}>
+            <h2>
+                pinscout
+                {#if pinscout}
+                    <b style="font-size: 2.8vh" in:fade={{ duration: 100 }} out:fade={{ duration: 100 }}>
+                        ➔
+                    </b>
+                {/if}
+            </h2>
+            <p style="font-size:1.8vh">&lt;web app, hackathon&gt;</p>
+            <p style="font-size: 1vw">a user-powered map to find hidden urban resources</p>
+            <img class="display" src={img_pinscout} alt=""/>
+        </div>
         <div class="project" on:mouseenter={() => cmail=true} on:mouseleave={() => cmail=false} on:click={() => goto("/projects/cmail")}>
             <h2>
                 cmail

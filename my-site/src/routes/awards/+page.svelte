@@ -3,6 +3,7 @@
     import Header from "../Header.svelte";
 	import { goto } from "$app/navigation";
 
+    let d021625 = false;
     let d090824 = false;
     let d051824 = false;
     let d030324 = false;
@@ -15,6 +16,7 @@
 
     // @ts-ignore
     function swap(date) {
+        d021625 = false;
         d090824 = false;
         d051824 = false;
         d030324 = false;
@@ -25,7 +27,9 @@
         d052922 = false;
         d031922 = false;
 
-        if (date == "090824") {
+        if (date == "021625") {
+            d021625 = true;
+        } else if (date == "090824") {
             d090824 = true;
         } else if (date == "051824") {
             d051824 = true;
@@ -61,6 +65,8 @@
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div class="awards">
         <div class="bar-content">
+            <p class="award" on:click={()=> swap("021625")}>2/16/25 - 3rd Place Group 2 EmP Hackfest SpaceHack</p>
+            <hr>
             <p class="award" on:click={()=> swap("090824")}>9/8/24 - 1st Place Group 3 EmP Hackfest SpaceHack</p>
             <hr>
             <p class="award" on:click={()=> swap("051824")}>5/18/24 - 1st Place Changbal Road to Tech 2024 Coding Contest</p>
@@ -80,7 +86,16 @@
             <p class="award" on:click={()=> swap("031922")}>3/19/22 - 2nd Place Cybersecurity Washington TSA Conference</p>
         </div>
         <div class="award-info">
-            {#if d090824}
+            {#if d021625}
+                <h2>2025 EMP Hackfest - AccessHack</h2>
+                <p>Local - Online - Hackathon - Team Competition - 3rd Place - Group 2</p>
+                <p>Group Members: shibest / refact0r / arrayman</p>
+                <p>Link: <a target="_blank">Not Available Currently</a></p>
+                <h3>Overview:</h3>
+                <p>Objective: Create the most functional and aesthetically pleasing project that aligns with the theme.</p>
+                <p>Theme: Resource Accessibility - Develop a solution that facilitates and assists in the accessibility of natural/urban resources</p>
+                <p>Our Project: <a target="_blank" href="https://devpost.com/software/pinscout?ref_content=my-projects-tab&ref_feature=my_projects">pinScout (Devpost Link)</a></p>
+            {:else if d090824}
                 <h2>2024 EMP Hackfest - SpaceHack</h2>
                 <p>Local - In Person - Hackathon - Team Competition - 1st Place - Group 3</p>
                 <p>Group Members: shibest / refact0r / static void / arrayman</p>

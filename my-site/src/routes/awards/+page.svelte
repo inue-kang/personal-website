@@ -105,7 +105,7 @@
                 <h2>2025 EMP Hackfest - AccessHack</h2>
                 <p>Local - Online - Hackathon - Team Competition - 3rd Place - Group 2</p>
                 <p>Group Members: shibest / refact0r / arrayman</p>
-                <p>Link: <a target="_blank">Not Available Currently</a></p>
+                <p>Link: <a target="_blank" href="https://emphackfest.org/february-2025">AccessHack - 8th EmP Hackfest (Main Site)</a></p>
                 <h3>Overview:</h3>
                 <p>Objective: Create the most functional and aesthetically pleasing project that aligns with the theme.</p>
                 <p>Theme: Resource Accessibility - Develop a solution that facilitates and assists in the accessibility of natural/urban resources</p>

@@ -40,7 +40,7 @@
             </h2>
             <p style="font-size:1.8vh">&lt;web app, hackathon&gt;</p>
             <p style="font-size: 1vw">The (mostly) all-in-one weather assistant</p>
-            <img class="display" style="width: 80%;" src={img_acclimate} alt=""/>
+            <img class="display" style="width: 100%;" src={img_acclimate} alt=""/>
         </div>
         <div class="project" on:mouseenter={() => pinscout=true} on:mouseleave={() => pinscout=false} on:click={() => goto("/projects/pinscout")}>
             <h2>

@@ -3,6 +3,7 @@
     import Header from "../Header.svelte";
 	import { goto } from "$app/navigation";
 
+    let d022725 = false;
     let d021625 = false;
     let d090824 = false;
     let d051824 = false;
@@ -16,6 +17,7 @@
 
     // @ts-ignore
     function swap(date) {
+        d022725 = false;
         d021625 = false;
         d090824 = false;
         d051824 = false;
@@ -29,6 +31,8 @@
 
         if (date == "021625") {
             d021625 = true;
+        } else if (date == "022725") {
+            d022725 = true;
         } else if (date == "090824") {
             d090824 = true;
         } else if (date == "051824") {
@@ -65,6 +69,8 @@
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div class="awards">
         <div class="bar-content">
+            <p class="award" on:click={()=> swap("022725")}>2/27/25 - 1st Place Overall IPC Winter Hackathon 2025</p>
+            <hr>
             <p class="award" on:click={()=> swap("021625")}>2/16/25 - 3rd Place Group 2 EmP Hackfest SpaceHack</p>
             <hr>
             <p class="award" on:click={()=> swap("090824")}>9/8/24 - 1st Place Group 3 EmP Hackfest SpaceHack</p>
@@ -73,7 +79,7 @@
             <hr>
             <p class="award" on:click={()=> swap("030324")}>3/3/24 - 2nd Place Design HackPNW Spring</p>
             <hr>
-            <p class="award" on:click={()=> swap("011724")}>1/17/24 - 1st Place Overall IPC Winter Hackathon</p>
+            <p class="award" on:click={()=> swap("011724")}>1/17/24 - 1st Place Overall IPC Winter Hackathon 2024</p>
             <hr>
             <p class="award" on:click={()=> swap("052023")}>5/20/23 - 1st Place Changbal Road to Tech 2023 Coding Contest</p>
             <hr>
@@ -86,7 +92,16 @@
             <p class="award" on:click={()=> swap("031922")}>3/19/22 - 2nd Place Cybersecurity Washington TSA Conference</p>
         </div>
         <div class="award-info">
-            {#if d021625}
+            {#if d022725}
+                <h2>Interlake Programming Club Winter Hackathon 2025</h2>
+                <p>Local - In Person - Hackathon - Team Competition - 1st Place Overall</p>
+                <p>Group Members: shibest / ben-6</p>
+                <p>Link: <a target="_blank" href="https://ipc-mid-winter-hackathon-2025.devpost.com/">IPC Winter Hackathon (Devpost Link)</a></p>
+                <h3>Overview:</h3>
+                <p>Objective: Create the most functional and aesthetically pleasing project that aligns with the theme.</p>
+                <p>Theme: Develop a software or web-based solution that addresses weather challenges through a other solution for communities facing both extreme and routine weather challenges.</p>
+                <p>Our Project: <a target="_blank" href="https://devpost.com/software/acclimate-26zdjt">AccliMate (Devpost Link)</a></p>
+            {:else if d021625}
                 <h2>2025 EMP Hackfest - AccessHack</h2>
                 <p>Local - Online - Hackathon - Team Competition - 3rd Place - Group 2</p>
                 <p>Group Members: shibest / refact0r / arrayman</p>
@@ -121,7 +136,7 @@
                 <p>Our Project: <a target="_blank" href="https://github.com/refact0r/papercut">papercut (Github Link)</a></p>
             {:else if d011724}
                 <h2>Interlake Programming Club Winter Hackathon 2024</h2>
-                <p>Local - In Person - Hackathon - Team Competition - 1nd Place - Overall</p>
+                <p>Local - In Person - Hackathon - Team Competition - 1st Place - Overall</p>
                 <p>Group Members: shibest / refact0r / ben-6</p>
                 <p>Link: <a target="_blank" href="https://ihs-winter-hackathon.devpost.com/">IPC Winter Hackathon (Devpost Link)</a></p>
                 <h3>Overview:</h3>

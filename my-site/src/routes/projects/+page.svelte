@@ -1,6 +1,7 @@
 <script>
     import Header from "../Header.svelte";
     import { fade } from 'svelte/transition';
+    import img_acclimate from "$lib/assets/acclimate.jpg"
     import img_pinscout from "$lib/assets/pinscout.C4CbqxjS.avif";
     import img_cmail from "$lib/assets/cmail.OhCrrboZ.avif"
     import img_papercut from "$lib/assets/papercut.BA6ec049.avif";
@@ -8,6 +9,7 @@
     import img_sfd from "$lib/assets/sfd.png";
 	import { goto } from "$app/navigation";
 
+    let acclimate = false;
     let pinscout = false;
     let cmail = false;
     let papercut = false;
@@ -27,6 +29,19 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div class="projects">
+        <div class="project" on:mouseenter={() => acclimate=true} on:mouseleave={() => acclimate=false} on:click={() => goto("/projects/acclimate")}>
+            <h2>
+                AccliMate
+                {#if acclimate}
+                    <b style="font-size: 2.8vh" in:fade={{ duration: 100 }} out:fade={{ duration: 100 }}>
+                        ➔
+                    </b>
+                {/if}
+            </h2>
+            <p style="font-size:1.8vh">&lt;web app, hackathon&gt;</p>
+            <p style="font-size: 1vw">The (mostly) all-in-one weather assistant</p>
+            <img class="display" src={img_acclimate} alt=""/>
+        </div>
         <div class="project" on:mouseenter={() => pinscout=true} on:mouseleave={() => pinscout=false} on:click={() => goto("/projects/pinscout")}>
             <h2>
                 pinScout

@@ -71,7 +71,7 @@
         <div class="bar-content">
             <p class="award" on:click={()=> swap("022725")}>2/27/25 - 1st Place Overall IPC Winter Hackathon 2025</p>
             <hr>
-            <p class="award" on:click={()=> swap("021625")}>2/16/25 - 3rd Place Group 2 EmP Hackfest SpaceHack</p>
+            <p class="award" on:click={()=> swap("021625")}>2/16/25 - 3rd Place Group 2 EmP Hackfest AccessHack</p>
             <hr>
             <p class="award" on:click={()=> swap("090824")}>9/8/24 - 1st Place Group 3 EmP Hackfest SpaceHack</p>
             <hr>

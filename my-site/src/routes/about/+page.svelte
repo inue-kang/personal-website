@@ -20,7 +20,8 @@
         <h2>Skills</h2>
         <div class="info">
             <p>Languages: JS / TS / HTML / CSS / Java / Python</p>
-            <p>Apps: Visual Studio Code / IntelliJ IDE / Eclipse IDE / Adobe Photoshop / Adobe Illustrator / Adobe Premiere Pro / Figma / Canva / FL Studio</p>
+            <p>IDEs: Visual Studio Code / IntelliJ / Eclipse</p>
+            <p>Other Apps: Adobe Photoshop / Adobe Illustrator / Adobe Premiere Pro / Figma / Canva / FL Studio</p>
         </div>
         <h2>Certificates</h2>
         <div class="info">

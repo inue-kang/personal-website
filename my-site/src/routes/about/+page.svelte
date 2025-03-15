@@ -14,7 +14,7 @@
     <div class="about">
         <h2>Who am I?</h2>
         <div class="info">
-            <p>My name is Inue and I am a student that goes by the alias of shibest online from the Pacific Northwest. When I'm not working on a a coding project, you'll find me making music, graphics, or videos.</p>
+            <p>My name is Inue and I am a student that goes by the alias of shibest online from the Pacific Northwest. When I'm not working on a coding project, you'll find me making music, graphics, or videos.</p>
             <p>In my spare time, I enjoy playing table tennis, video games, and hanging out with friends.</p>
         </div>
         <h2>Skills</h2>

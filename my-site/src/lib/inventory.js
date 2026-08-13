@@ -1,4 +1,4 @@
-const code_cards = {
+export const code_cards = {
     "promos": {
         "ENSVCHZEXSPC": {
             title: "Charizard ex Super-Premium Collection",

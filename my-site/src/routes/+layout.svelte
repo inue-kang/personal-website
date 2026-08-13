@@ -1,1694 +1,430 @@
 <script>
 	import '../app.css';
-	import { fade } from 'svelte/transition';
-	import { PawPrint, Medal, NoteBlank, ProjectorScreen, User } from "phosphor-svelte";
+	import { onMount } from 'svelte';
+	import { onNavigate } from '$app/navigation';
+	import SunIcon from 'phosphor-svelte/lib/SunIcon';
+	import MoonIcon from 'phosphor-svelte/lib/MoonIcon';
 
-	export let data;
+	let { children } = $props();
+
+	// ── dark mode ─────────────────────────────────────────────
+	// the pre-paint script in app.html applies the stored/OS theme;
+	// this just mirrors it into state and flips it on click
+	let dark = $state(false);
+
+	onMount(() => {
+		dark = document.documentElement.classList.contains('dark');
+	});
+
+	function toggleTheme() {
+		dark = !dark;
+		document.documentElement.classList.toggle('dark', dark);
+		try {
+			localStorage.setItem('theme', dark ? 'dark' : 'light');
+		} catch {
+			/* fine — theme just won't persist */
+		}
+	}
+
+	// ── doggo easter egg: type "doggo" anywhere ───────────────
+	// the original site's shiba jumps up from the bottom, hangs out
+	// for a second, then drops back down
+	const dogFrames = Object.entries(
+		import.meta.glob('../lib/assets/shibest_doggo00*.png', {
+			eager: true,
+			query: '?url',
+			import: 'default'
+		})
+	)
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([, url]) => /** @type {string} */ (url))
+		.slice(0, 24); // frames 1-24 are the jump cycle
+
+	let dogSrc = $state('');
+	let dogShown = $state(false);
+	let dogBusy = false;
+	let typedBuf = '';
+
+	/** @param {KeyboardEvent} e */
+	function onKeydown(e) {
+		if (e.key && e.key.length === 1) {
+			typedBuf = (typedBuf + e.key.toLowerCase()).slice(-5);
+			if (typedBuf === 'doggo') {
+				typedBuf = '';
+				summonDoggo();
+			}
+		}
+	}
+
+	function summonDoggo() {
+		if (dogBusy || dogFrames.length === 0) return;
+		dogBusy = true;
+		dogShown = true;
+		let frame = 0;
+		let tick = 0;
+		const enter = () => {
+			if (tick % 3 === 0) {
+				dogSrc = dogFrames[frame];
+				if (frame >= dogFrames.length - 1) {
+					setTimeout(dropDown, 1000);
+					return;
+				}
+				frame++;
+			}
+			tick++;
+			requestAnimationFrame(enter);
+		};
+		const dropDown = () => {
+			let f = dogFrames.length - 1;
+			let tk = 0;
+			const exit = () => {
+				if (tk % 2 === 0) {
+					dogSrc = dogFrames[f];
+					if (f <= 0) {
+						dogShown = false;
+						dogBusy = false;
+						return;
+					}
+					f--;
+				}
+				tk++;
+				requestAnimationFrame(exit);
+			};
+			exit();
+		};
+		enter();
+	}
+
+	// ── click sparks: every clickable element bursts ──────────
+	// one global listener instead of per-element wiring; lives in the
+	// layout so sparks even survive page swaps mid-flight
+	const sparkColors = () =>
+		document.documentElement.classList.contains('dark')
+			? ['#f2f2f2', '#cfcfcf', '#a3a3a3', '#7d7d7d']
+			: ['#0a0a0a', '#333333', '#6b6b6b', '#9a9a9a'];
+
+	/** @type {{ id: number, x: number, y: number, angle: number, dist: number, size: number, color: string, dur: number }[]} */
+	let sparks = $state([]);
+	let sparkSeq = 0;
+
+	/**
+	 * @param {number} x
+	 * @param {number} y
+	 */
+	function burst(x, y) {
+		const colors = sparkColors();
+		const batch = Array.from({ length: 18 }, () => ({
+			id: sparkSeq++,
+			x,
+			y,
+			angle: Math.random() * 360,
+			dist: 45 + Math.random() * 85,
+			size: 2.5 + Math.random() * 4,
+			color: colors[Math.floor(Math.random() * colors.length)],
+			dur: 300 + Math.random() * 250
+		}));
+		sparks = [...sparks, ...batch];
+		const ids = new Set(batch.map((s) => s.id));
+		setTimeout(() => {
+			sparks = sparks.filter((s) => !ids.has(s.id));
+		}, 600);
+	}
+
+	// bubble-phase on window: the draggable action's capture-phase
+	// stopPropagation on tossed elements keeps drags spark-free.
+	// composedPath (snapshotted at dispatch) instead of target.closest —
+	// a button that re-renders its own contents on click (like the theme
+	// toggle swapping icons) detaches e.target before this runs
+	/** @param {MouseEvent} e */
+	function onGlobalClick(e) {
+		const el = /** @type {Element | undefined} */ (
+			e.composedPath().find((n) => n instanceof Element && (n.tagName === 'A' || n.tagName === 'BUTTON'))
+		);
+		if (!el) return;
+		let x = e.clientX;
+		let y = e.clientY;
+		if (!x && !y) {
+			// keyboard activation has no pointer position — spark from the element
+			const r = el.getBoundingClientRect();
+			x = r.left + r.width / 2;
+			y = r.top + r.height / 2;
+		}
+		burst(x, y);
+	}
+
+	// page transition: a white sheet slides over the old page, the route
+	// swaps beneath it, then the sheet slides off the other side.
+	// onNavigate's returned promise holds the swap until the cover is across.
+	/** @type {'rest' | 'in' | 'out'} */
+	let cover = $state('rest');
+
+	onNavigate((navigation) => {
+		// clicking a link to the page you're already on: no transition
+		if (navigation.to?.url.pathname === navigation.from?.url.pathname) return;
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		cover = 'in';
+		return new Promise((resolve) => {
+			setTimeout(() => {
+				resolve(); // the page swaps while fully covered
+				setTimeout(() => (cover = 'out'), 80);
+				setTimeout(() => (cover = 'rest'), 440);
+			}, 300);
+		});
+	});
+
+	// Zipping background lines. Each line shoots across the screen during the
+	// first ~35% of its cycle, then rests off-screen — staggered delays keep
+	// the zips periodic rather than constant. lane is vh/vw, len is vmax,
+	// dur/delay are seconds.
+	const lines = [
+		{ dir: 'h', lane: 8, len: 34, thick: 2, dur: 7, delay: 0, reverse: false, shade: '#9e9e9e' },
+		{ dir: 'h', lane: 21, len: 22, thick: 1.5, dur: 9, delay: 3.2, reverse: true, shade: '#b8b8b8' },
+		{ dir: 'h', lane: 33, len: 40, thick: 2.5, dur: 6, delay: 1.4, reverse: false, shade: '#9e9e9e' },
+		{ dir: 'h', lane: 46, len: 26, thick: 1.5, dur: 8, delay: 5.6, reverse: false, shade: '#c9c9c9' },
+		{ dir: 'h', lane: 58, len: 36, thick: 2, dur: 7.5, delay: 2.3, reverse: true, shade: '#9e9e9e' },
+		{ dir: 'h', lane: 69, len: 20, thick: 1.5, dur: 10, delay: 7.1, reverse: false, shade: '#b8b8b8' },
+		{ dir: 'h', lane: 81, len: 32, thick: 2, dur: 6.5, delay: 4.4, reverse: true, shade: '#9e9e9e' },
+		{ dir: 'h', lane: 92, len: 26, thick: 1.5, dur: 8.5, delay: 0.9, reverse: false, shade: '#c9c9c9' },
+		{ dir: 'v', lane: 7, len: 30, thick: 2, dur: 8, delay: 1.8, reverse: false, shade: '#9e9e9e' },
+		{ dir: 'v', lane: 19, len: 22, thick: 1.5, dur: 10, delay: 5.1, reverse: true, shade: '#b8b8b8' },
+		{ dir: 'v', lane: 34, len: 38, thick: 2.5, dur: 6.5, delay: 3.7, reverse: false, shade: '#9e9e9e' },
+		{ dir: 'v', lane: 49, len: 24, thick: 1.5, dur: 9, delay: 0.4, reverse: true, shade: '#c9c9c9' },
+		{ dir: 'v', lane: 63, len: 34, thick: 2, dur: 7, delay: 6.3, reverse: false, shade: '#9e9e9e' },
+		{ dir: 'v', lane: 78, len: 20, thick: 1.5, dur: 10.5, delay: 2.9, reverse: true, shade: '#b8b8b8' },
+		{ dir: 'v', lane: 91, len: 30, thick: 2, dur: 7.5, delay: 4.9, reverse: false, shade: '#9e9e9e' }
+	];
 </script>
 
+<svelte:window onkeydown={onKeydown} onclick={onGlobalClick} />
+
 <div class="app">
-	{#key data.pathname}
-		<div class="main" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
-			<slot />
-		</div>
-	{/key}
-	<section class="sticky">
-		<div class="bubbles">
-			{#each Array(540) as _, i}
-				<div class="bubble">
-					{#if data.pathname == "/projects"}
-						<ProjectorScreen />
-					{:else if data.pathname == "/awards"}
-						<Medal />
-					{:else if data.pathname == "/posts"}
-						<NoteBlank />
-					{:else if data.pathname == "/about"}
-						<User />
-					{:else}
-						<PawPrint />
-					{/if}
-				</div>
-			{/each}
-		</div>
-	</section>
+	<div class="main">
+		{@render children()}
+	</div>
+
+	<button
+		class="theme-toggle"
+		onclick={toggleTheme}
+		aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+	>
+		{#if dark}
+			<SunIcon weight="duotone" />
+		{:else}
+			<MoonIcon weight="duotone" />
+		{/if}
+	</button>
+
+	{#if dogShown}
+		<img class="doggo" src={dogSrc} alt="" aria-hidden="true" />
+	{/if}
+
+	{#each sparks as s (s.id)}
+		<span
+			class="spark"
+			style="left: {s.x}px; top: {s.y}px; --a: {s.angle}deg; --d: {s.dist}px; --size: {s.size}px; --c: {s.color}; --dur: {s.dur}ms;"
+		></span>
+	{/each}
+
+	<div class="cover" class:in={cover === 'in'} class:out={cover === 'out'} aria-hidden="true"></div>
+
+	<div class="scene" aria-hidden="true">
+		{#each lines as l, i (i)}
+			<div
+				class="line {l.dir}"
+				class:reverse={l.reverse}
+				style="--lane: {l.lane}{l.dir === 'h' ? 'vh' : 'vw'}; --len: {l.len}vmax; --thick: {l.thick}px; --shade: {l.shade}; animation-duration: {l.dur}s; animation-delay: {l.delay}s;"
+			></div>
+		{/each}
+	</div>
 </div>
 
 <style>
 	.main {
-		font-family: "Azeret Mono", serif;
+		font-family: var(--font-body);
 		font-optical-sizing: auto;
 		font-style: normal;
 	}
 
-	.sticky {
-		margin: 0;
+	.theme-toggle {
+		position: fixed;
+		top: 1.4rem;
+		right: 1.4rem;
+		z-index: 60;
+		width: 2.7rem;
+		height: 2.7rem;
+		display: grid;
+		place-items: center;
 		padding: 0;
+		border-radius: 50%;
+		font-size: 1.25rem;
+		color: var(--ink);
+		background: var(--surface);
+		border: 1.5px solid var(--ink);
+		cursor: pointer;
+		transition:
+			background-color 0.2s ease,
+			color 0.2s ease,
+			scale 0.2s ease;
+	}
+	.theme-toggle:hover,
+	.theme-toggle:focus-visible {
+		background: var(--ink);
+		color: var(--bg);
+		scale: 1.08;
+		outline: none;
 	}
 
-	.bubbles {
+	.doggo {
 		position: fixed;
-		width: 100%;
-		height: 100%;
+		bottom: 0;
+		left: 50%;
+		transform: translateX(-50%);
+		width: min(420px, 70vw);
+		z-index: 400;
+		pointer-events: none;
+	}
+
+	/* ── click sparks ────────────────────────────────────── */
+	.spark {
+		position: fixed;
+		width: var(--size);
+		height: var(--size);
+		border-radius: 50%;
+		background: var(--c);
+		box-shadow: 0 0 6px var(--c);
+		pointer-events: none;
+		z-index: 100;
+		animation: spark-fly var(--dur) cubic-bezier(0.2, 0.6, 0.3, 1) forwards;
+	}
+
+	@keyframes spark-fly {
+		0% {
+			opacity: 1;
+			transform: translate(-50%, -50%) rotate(var(--a)) translateX(0) scale(1);
+		}
+		100% {
+			opacity: 0;
+			transform: translate(-50%, -50%) rotate(var(--a)) translateX(var(--d)) scale(0.2);
+		}
+	}
+
+	.cover {
+		position: fixed;
+		inset: 0;
+		z-index: 300;
+		background: var(--bg);
+		box-shadow: 0 0 40px rgba(0, 0, 0, 0.15);
+		transform: translateX(-102%);
+		pointer-events: none;
+	}
+	.cover.in {
+		transform: translateX(0);
+		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+	.cover.out {
+		transform: translateX(102%);
+		transition: transform 0.34s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+	/* 'rest' snaps back to the left, off-screen, with no transition */
+
+	.scene {
+		position: fixed;
+		inset: 0;
 		overflow: hidden;
-		top: 0;
-		left: 0;
 		z-index: -2;
 	}
-	.bubble {
-		position: absolute;
-		font-size: 5vh;
-		color: rgb(255, 209, 122);
-		border-radius: 50%;
-		animation: moveDiagonal 8s infinite linear;
-	}
-	/*.bubble:nth-child(n) {
-		top: calc(-100vh + mod((n-1), 20)*10vh);
-		left: calc(((n-1)/20)*10vh);
-	}*/
-	.bubble:nth-child(1) {
-top: -100vh;
-left: -60vh;
-}.bubble:nth-child(2) {
-top: -90vh;
-left: -60vh;
-}.bubble:nth-child(3) {
-top: -80vh;
-left: -60vh;
-}.bubble:nth-child(4) {
-top: -70vh;
-left: -60vh;
-}.bubble:nth-child(5) {
-top: -60vh;
-left: -60vh;
-}.bubble:nth-child(6) {
-top: -50vh;
-left: -60vh;
-}.bubble:nth-child(7) {
-top: -40vh;
-left: -60vh;
-}.bubble:nth-child(8) {
-top: -30vh;
-left: -60vh;
-}.bubble:nth-child(9) {
-top: -20vh;
-left: -60vh;
-}.bubble:nth-child(10) {
-top: -10vh;
-left: -60vh;
-}.bubble:nth-child(11) {
-top: 0vh;
-left: -60vh;
-}.bubble:nth-child(12) {
-top: 10vh;
-left: -60vh;
-}.bubble:nth-child(13) {
-top: 20vh;
-left: -60vh;
-}.bubble:nth-child(14) {
-top: 30vh;
-left: -60vh;
-}.bubble:nth-child(15) {
-top: 40vh;
-left: -60vh;
-}.bubble:nth-child(16) {
-top: 50vh;
-left: -60vh;
-}.bubble:nth-child(17) {
-top: 60vh;
-left: -60vh;
-}.bubble:nth-child(18) {
-top: 70vh;
-left: -60vh;
-}.bubble:nth-child(19) {
-top: 80vh;
-left: -60vh;
-}.bubble:nth-child(20) {
-top: 90vh;
-left: -60vh;
-}.bubble:nth-child(21) {
-top: -100vh;
-left: -50vh;
-}.bubble:nth-child(22) {
-top: -90vh;
-left: -50vh;
-}.bubble:nth-child(23) {
-top: -80vh;
-left: -50vh;
-}.bubble:nth-child(24) {
-top: -70vh;
-left: -50vh;
-}.bubble:nth-child(25) {
-top: -60vh;
-left: -50vh;
-}.bubble:nth-child(26) {
-top: -50vh;
-left: -50vh;
-}.bubble:nth-child(27) {
-top: -40vh;
-left: -50vh;
-}.bubble:nth-child(28) {
-top: -30vh;
-left: -50vh;
-}.bubble:nth-child(29) {
-top: -20vh;
-left: -50vh;
-}.bubble:nth-child(30) {
-top: -10vh;
-left: -50vh;
-}.bubble:nth-child(31) {
-top: 0vh;
-left: -50vh;
-}.bubble:nth-child(32) {
-top: 10vh;
-left: -50vh;
-}.bubble:nth-child(33) {
-top: 20vh;
-left: -50vh;
-}.bubble:nth-child(34) {
-top: 30vh;
-left: -50vh;
-}.bubble:nth-child(35) {
-top: 40vh;
-left: -50vh;
-}.bubble:nth-child(36) {
-top: 50vh;
-left: -50vh;
-}.bubble:nth-child(37) {
-top: 60vh;
-left: -50vh;
-}.bubble:nth-child(38) {
-top: 70vh;
-left: -50vh;
-}.bubble:nth-child(39) {
-top: 80vh;
-left: -50vh;
-}.bubble:nth-child(40) {
-top: 90vh;
-left: -50vh;
-}.bubble:nth-child(41) {
-top: -100vh;
-left: -40vh;
-}.bubble:nth-child(42) {
-top: -90vh;
-left: -40vh;
-}.bubble:nth-child(43) {
-top: -80vh;
-left: -40vh;
-}.bubble:nth-child(44) {
-top: -70vh;
-left: -40vh;
-}.bubble:nth-child(45) {
-top: -60vh;
-left: -40vh;
-}.bubble:nth-child(46) {
-top: -50vh;
-left: -40vh;
-}.bubble:nth-child(47) {
-top: -40vh;
-left: -40vh;
-}.bubble:nth-child(48) {
-top: -30vh;
-left: -40vh;
-}.bubble:nth-child(49) {
-top: -20vh;
-left: -40vh;
-}.bubble:nth-child(50) {
-top: -10vh;
-left: -40vh;
-}.bubble:nth-child(51) {
-top: 0vh;
-left: -40vh;
-}.bubble:nth-child(52) {
-top: 10vh;
-left: -40vh;
-}.bubble:nth-child(53) {
-top: 20vh;
-left: -40vh;
-}.bubble:nth-child(54) {
-top: 30vh;
-left: -40vh;
-}.bubble:nth-child(55) {
-top: 40vh;
-left: -40vh;
-}.bubble:nth-child(56) {
-top: 50vh;
-left: -40vh;
-}.bubble:nth-child(57) {
-top: 60vh;
-left: -40vh;
-}.bubble:nth-child(58) {
-top: 70vh;
-left: -40vh;
-}.bubble:nth-child(59) {
-top: 80vh;
-left: -40vh;
-}.bubble:nth-child(60) {
-top: 90vh;
-left: -40vh;
-}.bubble:nth-child(61) {
-top: -100vh;
-left: -30vh;
-}.bubble:nth-child(62) {
-top: -90vh;
-left: -30vh;
-}.bubble:nth-child(63) {
-top: -80vh;
-left: -30vh;
-}.bubble:nth-child(64) {
-top: -70vh;
-left: -30vh;
-}.bubble:nth-child(65) {
-top: -60vh;
-left: -30vh;
-}.bubble:nth-child(66) {
-top: -50vh;
-left: -30vh;
-}.bubble:nth-child(67) {
-top: -40vh;
-left: -30vh;
-}.bubble:nth-child(68) {
-top: -30vh;
-left: -30vh;
-}.bubble:nth-child(69) {
-top: -20vh;
-left: -30vh;
-}.bubble:nth-child(70) {
-top: -10vh;
-left: -30vh;
-}.bubble:nth-child(71) {
-top: 0vh;
-left: -30vh;
-}.bubble:nth-child(72) {
-top: 10vh;
-left: -30vh;
-}.bubble:nth-child(73) {
-top: 20vh;
-left: -30vh;
-}.bubble:nth-child(74) {
-top: 30vh;
-left: -30vh;
-}.bubble:nth-child(75) {
-top: 40vh;
-left: -30vh;
-}.bubble:nth-child(76) {
-top: 50vh;
-left: -30vh;
-}.bubble:nth-child(77) {
-top: 60vh;
-left: -30vh;
-}.bubble:nth-child(78) {
-top: 70vh;
-left: -30vh;
-}.bubble:nth-child(79) {
-top: 80vh;
-left: -30vh;
-}.bubble:nth-child(80) {
-top: 90vh;
-left: -30vh;
-}.bubble:nth-child(81) {
-top: -100vh;
-left: -20vh;
-}.bubble:nth-child(82) {
-top: -90vh;
-left: -20vh;
-}.bubble:nth-child(83) {
-top: -80vh;
-left: -20vh;
-}.bubble:nth-child(84) {
-top: -70vh;
-left: -20vh;
-}.bubble:nth-child(85) {
-top: -60vh;
-left: -20vh;
-}.bubble:nth-child(86) {
-top: -50vh;
-left: -20vh;
-}.bubble:nth-child(87) {
-top: -40vh;
-left: -20vh;
-}.bubble:nth-child(88) {
-top: -30vh;
-left: -20vh;
-}.bubble:nth-child(89) {
-top: -20vh;
-left: -20vh;
-}.bubble:nth-child(90) {
-top: -10vh;
-left: -20vh;
-}.bubble:nth-child(91) {
-top: 0vh;
-left: -20vh;
-}.bubble:nth-child(92) {
-top: 10vh;
-left: -20vh;
-}.bubble:nth-child(93) {
-top: 20vh;
-left: -20vh;
-}.bubble:nth-child(94) {
-top: 30vh;
-left: -20vh;
-}.bubble:nth-child(95) {
-top: 40vh;
-left: -20vh;
-}.bubble:nth-child(96) {
-top: 50vh;
-left: -20vh;
-}.bubble:nth-child(97) {
-top: 60vh;
-left: -20vh;
-}.bubble:nth-child(98) {
-top: 70vh;
-left: -20vh;
-}.bubble:nth-child(99) {
-top: 80vh;
-left: -20vh;
-}.bubble:nth-child(100) {
-top: 90vh;
-left: -20vh;
-}.bubble:nth-child(101) {
-top: -100vh;
-left: -10vh;
-}.bubble:nth-child(102) {
-top: -90vh;
-left: -10vh;
-}.bubble:nth-child(103) {
-top: -80vh;
-left: -10vh;
-}.bubble:nth-child(104) {
-top: -70vh;
-left: -10vh;
-}.bubble:nth-child(105) {
-top: -60vh;
-left: -10vh;
-}.bubble:nth-child(106) {
-top: -50vh;
-left: -10vh;
-}.bubble:nth-child(107) {
-top: -40vh;
-left: -10vh;
-}.bubble:nth-child(108) {
-top: -30vh;
-left: -10vh;
-}.bubble:nth-child(109) {
-top: -20vh;
-left: -10vh;
-}.bubble:nth-child(110) {
-top: -10vh;
-left: -10vh;
-}.bubble:nth-child(111) {
-top: 0vh;
-left: -10vh;
-}.bubble:nth-child(112) {
-top: 10vh;
-left: -10vh;
-}.bubble:nth-child(113) {
-top: 20vh;
-left: -10vh;
-}.bubble:nth-child(114) {
-top: 30vh;
-left: -10vh;
-}.bubble:nth-child(115) {
-top: 40vh;
-left: -10vh;
-}.bubble:nth-child(116) {
-top: 50vh;
-left: -10vh;
-}.bubble:nth-child(117) {
-top: 60vh;
-left: -10vh;
-}.bubble:nth-child(118) {
-top: 70vh;
-left: -10vh;
-}.bubble:nth-child(119) {
-top: 80vh;
-left: -10vh;
-}.bubble:nth-child(120) {
-top: 90vh;
-left: -10vh;
-}.bubble:nth-child(121) {
-top: -100vh;
-left: 0vh;
-}.bubble:nth-child(122) {
-top: -90vh;
-left: 0vh;
-}.bubble:nth-child(123) {
-top: -80vh;
-left: 0vh;
-}.bubble:nth-child(124) {
-top: -70vh;
-left: 0vh;
-}.bubble:nth-child(125) {
-top: -60vh;
-left: 0vh;
-}.bubble:nth-child(126) {
-top: -50vh;
-left: 0vh;
-}.bubble:nth-child(127) {
-top: -40vh;
-left: 0vh;
-}.bubble:nth-child(128) {
-top: -30vh;
-left: 0vh;
-}.bubble:nth-child(129) {
-top: -20vh;
-left: 0vh;
-}.bubble:nth-child(130) {
-top: -10vh;
-left: 0vh;
-}.bubble:nth-child(131) {
-top: 0vh;
-left: 0vh;
-}.bubble:nth-child(132) {
-top: 10vh;
-left: 0vh;
-}.bubble:nth-child(133) {
-top: 20vh;
-left: 0vh;
-}.bubble:nth-child(134) {
-top: 30vh;
-left: 0vh;
-}.bubble:nth-child(135) {
-top: 40vh;
-left: 0vh;
-}.bubble:nth-child(136) {
-top: 50vh;
-left: 0vh;
-}.bubble:nth-child(137) {
-top: 60vh;
-left: 0vh;
-}.bubble:nth-child(138) {
-top: 70vh;
-left: 0vh;
-}.bubble:nth-child(139) {
-top: 80vh;
-left: 0vh;
-}.bubble:nth-child(140) {
-top: 90vh;
-left: 0vh;
-}.bubble:nth-child(141) {
-top: -100vh;
-left: 10vh;
-}.bubble:nth-child(142) {
-top: -90vh;
-left: 10vh;
-}.bubble:nth-child(143) {
-top: -80vh;
-left: 10vh;
-}.bubble:nth-child(144) {
-top: -70vh;
-left: 10vh;
-}.bubble:nth-child(145) {
-top: -60vh;
-left: 10vh;
-}.bubble:nth-child(146) {
-top: -50vh;
-left: 10vh;
-}.bubble:nth-child(147) {
-top: -40vh;
-left: 10vh;
-}.bubble:nth-child(148) {
-top: -30vh;
-left: 10vh;
-}.bubble:nth-child(149) {
-top: -20vh;
-left: 10vh;
-}.bubble:nth-child(150) {
-top: -10vh;
-left: 10vh;
-}.bubble:nth-child(151) {
-top: 0vh;
-left: 10vh;
-}.bubble:nth-child(152) {
-top: 10vh;
-left: 10vh;
-}.bubble:nth-child(153) {
-top: 20vh;
-left: 10vh;
-}.bubble:nth-child(154) {
-top: 30vh;
-left: 10vh;
-}.bubble:nth-child(155) {
-top: 40vh;
-left: 10vh;
-}.bubble:nth-child(156) {
-top: 50vh;
-left: 10vh;
-}.bubble:nth-child(157) {
-top: 60vh;
-left: 10vh;
-}.bubble:nth-child(158) {
-top: 70vh;
-left: 10vh;
-}.bubble:nth-child(159) {
-top: 80vh;
-left: 10vh;
-}.bubble:nth-child(160) {
-top: 90vh;
-left: 10vh;
-}.bubble:nth-child(161) {
-top: -100vh;
-left: 20vh;
-}.bubble:nth-child(162) {
-top: -90vh;
-left: 20vh;
-}.bubble:nth-child(163) {
-top: -80vh;
-left: 20vh;
-}.bubble:nth-child(164) {
-top: -70vh;
-left: 20vh;
-}.bubble:nth-child(165) {
-top: -60vh;
-left: 20vh;
-}.bubble:nth-child(166) {
-top: -50vh;
-left: 20vh;
-}.bubble:nth-child(167) {
-top: -40vh;
-left: 20vh;
-}.bubble:nth-child(168) {
-top: -30vh;
-left: 20vh;
-}.bubble:nth-child(169) {
-top: -20vh;
-left: 20vh;
-}.bubble:nth-child(170) {
-top: -10vh;
-left: 20vh;
-}.bubble:nth-child(171) {
-top: 0vh;
-left: 20vh;
-}.bubble:nth-child(172) {
-top: 10vh;
-left: 20vh;
-}.bubble:nth-child(173) {
-top: 20vh;
-left: 20vh;
-}.bubble:nth-child(174) {
-top: 30vh;
-left: 20vh;
-}.bubble:nth-child(175) {
-top: 40vh;
-left: 20vh;
-}.bubble:nth-child(176) {
-top: 50vh;
-left: 20vh;
-}.bubble:nth-child(177) {
-top: 60vh;
-left: 20vh;
-}.bubble:nth-child(178) {
-top: 70vh;
-left: 20vh;
-}.bubble:nth-child(179) {
-top: 80vh;
-left: 20vh;
-}.bubble:nth-child(180) {
-top: 90vh;
-left: 20vh;
-}.bubble:nth-child(181) {
-top: -100vh;
-left: 30vh;
-}.bubble:nth-child(182) {
-top: -90vh;
-left: 30vh;
-}.bubble:nth-child(183) {
-top: -80vh;
-left: 30vh;
-}.bubble:nth-child(184) {
-top: -70vh;
-left: 30vh;
-}.bubble:nth-child(185) {
-top: -60vh;
-left: 30vh;
-}.bubble:nth-child(186) {
-top: -50vh;
-left: 30vh;
-}.bubble:nth-child(187) {
-top: -40vh;
-left: 30vh;
-}.bubble:nth-child(188) {
-top: -30vh;
-left: 30vh;
-}.bubble:nth-child(189) {
-top: -20vh;
-left: 30vh;
-}.bubble:nth-child(190) {
-top: -10vh;
-left: 30vh;
-}.bubble:nth-child(191) {
-top: 0vh;
-left: 30vh;
-}.bubble:nth-child(192) {
-top: 10vh;
-left: 30vh;
-}.bubble:nth-child(193) {
-top: 20vh;
-left: 30vh;
-}.bubble:nth-child(194) {
-top: 30vh;
-left: 30vh;
-}.bubble:nth-child(195) {
-top: 40vh;
-left: 30vh;
-}.bubble:nth-child(196) {
-top: 50vh;
-left: 30vh;
-}.bubble:nth-child(197) {
-top: 60vh;
-left: 30vh;
-}.bubble:nth-child(198) {
-top: 70vh;
-left: 30vh;
-}.bubble:nth-child(199) {
-top: 80vh;
-left: 30vh;
-}.bubble:nth-child(200) {
-top: 90vh;
-left: 30vh;
-}.bubble:nth-child(201) {
-top: -100vh;
-left: 40vh;
-}.bubble:nth-child(202) {
-top: -90vh;
-left: 40vh;
-}.bubble:nth-child(203) {
-top: -80vh;
-left: 40vh;
-}.bubble:nth-child(204) {
-top: -70vh;
-left: 40vh;
-}.bubble:nth-child(205) {
-top: -60vh;
-left: 40vh;
-}.bubble:nth-child(206) {
-top: -50vh;
-left: 40vh;
-}.bubble:nth-child(207) {
-top: -40vh;
-left: 40vh;
-}.bubble:nth-child(208) {
-top: -30vh;
-left: 40vh;
-}.bubble:nth-child(209) {
-top: -20vh;
-left: 40vh;
-}.bubble:nth-child(210) {
-top: -10vh;
-left: 40vh;
-}.bubble:nth-child(211) {
-top: 0vh;
-left: 40vh;
-}.bubble:nth-child(212) {
-top: 10vh;
-left: 40vh;
-}.bubble:nth-child(213) {
-top: 20vh;
-left: 40vh;
-}.bubble:nth-child(214) {
-top: 30vh;
-left: 40vh;
-}.bubble:nth-child(215) {
-top: 40vh;
-left: 40vh;
-}.bubble:nth-child(216) {
-top: 50vh;
-left: 40vh;
-}.bubble:nth-child(217) {
-top: 60vh;
-left: 40vh;
-}.bubble:nth-child(218) {
-top: 70vh;
-left: 40vh;
-}.bubble:nth-child(219) {
-top: 80vh;
-left: 40vh;
-}.bubble:nth-child(220) {
-top: 90vh;
-left: 40vh;
-}.bubble:nth-child(221) {
-top: -100vh;
-left: 50vh;
-}.bubble:nth-child(222) {
-top: -90vh;
-left: 50vh;
-}.bubble:nth-child(223) {
-top: -80vh;
-left: 50vh;
-}.bubble:nth-child(224) {
-top: -70vh;
-left: 50vh;
-}.bubble:nth-child(225) {
-top: -60vh;
-left: 50vh;
-}.bubble:nth-child(226) {
-top: -50vh;
-left: 50vh;
-}.bubble:nth-child(227) {
-top: -40vh;
-left: 50vh;
-}.bubble:nth-child(228) {
-top: -30vh;
-left: 50vh;
-}.bubble:nth-child(229) {
-top: -20vh;
-left: 50vh;
-}.bubble:nth-child(230) {
-top: -10vh;
-left: 50vh;
-}.bubble:nth-child(231) {
-top: 0vh;
-left: 50vh;
-}.bubble:nth-child(232) {
-top: 10vh;
-left: 50vh;
-}.bubble:nth-child(233) {
-top: 20vh;
-left: 50vh;
-}.bubble:nth-child(234) {
-top: 30vh;
-left: 50vh;
-}.bubble:nth-child(235) {
-top: 40vh;
-left: 50vh;
-}.bubble:nth-child(236) {
-top: 50vh;
-left: 50vh;
-}.bubble:nth-child(237) {
-top: 60vh;
-left: 50vh;
-}.bubble:nth-child(238) {
-top: 70vh;
-left: 50vh;
-}.bubble:nth-child(239) {
-top: 80vh;
-left: 50vh;
-}.bubble:nth-child(240) {
-top: 90vh;
-left: 50vh;
-}.bubble:nth-child(241) {
-top: -100vh;
-left: 60vh;
-}.bubble:nth-child(242) {
-top: -90vh;
-left: 60vh;
-}.bubble:nth-child(243) {
-top: -80vh;
-left: 60vh;
-}.bubble:nth-child(244) {
-top: -70vh;
-left: 60vh;
-}.bubble:nth-child(245) {
-top: -60vh;
-left: 60vh;
-}.bubble:nth-child(246) {
-top: -50vh;
-left: 60vh;
-}.bubble:nth-child(247) {
-top: -40vh;
-left: 60vh;
-}.bubble:nth-child(248) {
-top: -30vh;
-left: 60vh;
-}.bubble:nth-child(249) {
-top: -20vh;
-left: 60vh;
-}.bubble:nth-child(250) {
-top: -10vh;
-left: 60vh;
-}.bubble:nth-child(251) {
-top: 0vh;
-left: 60vh;
-}.bubble:nth-child(252) {
-top: 10vh;
-left: 60vh;
-}.bubble:nth-child(253) {
-top: 20vh;
-left: 60vh;
-}.bubble:nth-child(254) {
-top: 30vh;
-left: 60vh;
-}.bubble:nth-child(255) {
-top: 40vh;
-left: 60vh;
-}.bubble:nth-child(256) {
-top: 50vh;
-left: 60vh;
-}.bubble:nth-child(257) {
-top: 60vh;
-left: 60vh;
-}.bubble:nth-child(258) {
-top: 70vh;
-left: 60vh;
-}.bubble:nth-child(259) {
-top: 80vh;
-left: 60vh;
-}.bubble:nth-child(260) {
-top: 90vh;
-left: 60vh;
-}.bubble:nth-child(261) {
-top: -100vh;
-left: 70vh;
-}.bubble:nth-child(262) {
-top: -90vh;
-left: 70vh;
-}.bubble:nth-child(263) {
-top: -80vh;
-left: 70vh;
-}.bubble:nth-child(264) {
-top: -70vh;
-left: 70vh;
-}.bubble:nth-child(265) {
-top: -60vh;
-left: 70vh;
-}.bubble:nth-child(266) {
-top: -50vh;
-left: 70vh;
-}.bubble:nth-child(267) {
-top: -40vh;
-left: 70vh;
-}.bubble:nth-child(268) {
-top: -30vh;
-left: 70vh;
-}.bubble:nth-child(269) {
-top: -20vh;
-left: 70vh;
-}.bubble:nth-child(270) {
-top: -10vh;
-left: 70vh;
-}.bubble:nth-child(271) {
-top: 0vh;
-left: 70vh;
-}.bubble:nth-child(272) {
-top: 10vh;
-left: 70vh;
-}.bubble:nth-child(273) {
-top: 20vh;
-left: 70vh;
-}.bubble:nth-child(274) {
-top: 30vh;
-left: 70vh;
-}.bubble:nth-child(275) {
-top: 40vh;
-left: 70vh;
-}.bubble:nth-child(276) {
-top: 50vh;
-left: 70vh;
-}.bubble:nth-child(277) {
-top: 60vh;
-left: 70vh;
-}.bubble:nth-child(278) {
-top: 70vh;
-left: 70vh;
-}.bubble:nth-child(279) {
-top: 80vh;
-left: 70vh;
-}.bubble:nth-child(280) {
-top: 90vh;
-left: 70vh;
-}.bubble:nth-child(281) {
-top: -100vh;
-left: 80vh;
-}.bubble:nth-child(282) {
-top: -90vh;
-left: 80vh;
-}.bubble:nth-child(283) {
-top: -80vh;
-left: 80vh;
-}.bubble:nth-child(284) {
-top: -70vh;
-left: 80vh;
-}.bubble:nth-child(285) {
-top: -60vh;
-left: 80vh;
-}.bubble:nth-child(286) {
-top: -50vh;
-left: 80vh;
-}.bubble:nth-child(287) {
-top: -40vh;
-left: 80vh;
-}.bubble:nth-child(288) {
-top: -30vh;
-left: 80vh;
-}.bubble:nth-child(289) {
-top: -20vh;
-left: 80vh;
-}.bubble:nth-child(290) {
-top: -10vh;
-left: 80vh;
-}.bubble:nth-child(291) {
-top: 0vh;
-left: 80vh;
-}.bubble:nth-child(292) {
-top: 10vh;
-left: 80vh;
-}.bubble:nth-child(293) {
-top: 20vh;
-left: 80vh;
-}.bubble:nth-child(294) {
-top: 30vh;
-left: 80vh;
-}.bubble:nth-child(295) {
-top: 40vh;
-left: 80vh;
-}.bubble:nth-child(296) {
-top: 50vh;
-left: 80vh;
-}.bubble:nth-child(297) {
-top: 60vh;
-left: 80vh;
-}.bubble:nth-child(298) {
-top: 70vh;
-left: 80vh;
-}.bubble:nth-child(299) {
-top: 80vh;
-left: 80vh;
-}.bubble:nth-child(300) {
-top: 90vh;
-left: 80vh;
-}.bubble:nth-child(301) {
-top: -100vh;
-left: 90vh;
-}.bubble:nth-child(302) {
-top: -90vh;
-left: 90vh;
-}.bubble:nth-child(303) {
-top: -80vh;
-left: 90vh;
-}.bubble:nth-child(304) {
-top: -70vh;
-left: 90vh;
-}.bubble:nth-child(305) {
-top: -60vh;
-left: 90vh;
-}.bubble:nth-child(306) {
-top: -50vh;
-left: 90vh;
-}.bubble:nth-child(307) {
-top: -40vh;
-left: 90vh;
-}.bubble:nth-child(308) {
-top: -30vh;
-left: 90vh;
-}.bubble:nth-child(309) {
-top: -20vh;
-left: 90vh;
-}.bubble:nth-child(310) {
-top: -10vh;
-left: 90vh;
-}.bubble:nth-child(311) {
-top: 0vh;
-left: 90vh;
-}.bubble:nth-child(312) {
-top: 10vh;
-left: 90vh;
-}.bubble:nth-child(313) {
-top: 20vh;
-left: 90vh;
-}.bubble:nth-child(314) {
-top: 30vh;
-left: 90vh;
-}.bubble:nth-child(315) {
-top: 40vh;
-left: 90vh;
-}.bubble:nth-child(316) {
-top: 50vh;
-left: 90vh;
-}.bubble:nth-child(317) {
-top: 60vh;
-left: 90vh;
-}.bubble:nth-child(318) {
-top: 70vh;
-left: 90vh;
-}.bubble:nth-child(319) {
-top: 80vh;
-left: 90vh;
-}.bubble:nth-child(320) {
-top: 90vh;
-left: 90vh;
-}.bubble:nth-child(321) {
-top: -100vh;
-left: 100vh;
-}.bubble:nth-child(322) {
-top: -90vh;
-left: 100vh;
-}.bubble:nth-child(323) {
-top: -80vh;
-left: 100vh;
-}.bubble:nth-child(324) {
-top: -70vh;
-left: 100vh;
-}.bubble:nth-child(325) {
-top: -60vh;
-left: 100vh;
-}.bubble:nth-child(326) {
-top: -50vh;
-left: 100vh;
-}.bubble:nth-child(327) {
-top: -40vh;
-left: 100vh;
-}.bubble:nth-child(328) {
-top: -30vh;
-left: 100vh;
-}.bubble:nth-child(329) {
-top: -20vh;
-left: 100vh;
-}.bubble:nth-child(330) {
-top: -10vh;
-left: 100vh;
-}.bubble:nth-child(331) {
-top: 0vh;
-left: 100vh;
-}.bubble:nth-child(332) {
-top: 10vh;
-left: 100vh;
-}.bubble:nth-child(333) {
-top: 20vh;
-left: 100vh;
-}.bubble:nth-child(334) {
-top: 30vh;
-left: 100vh;
-}.bubble:nth-child(335) {
-top: 40vh;
-left: 100vh;
-}.bubble:nth-child(336) {
-top: 50vh;
-left: 100vh;
-}.bubble:nth-child(337) {
-top: 60vh;
-left: 100vh;
-}.bubble:nth-child(338) {
-top: 70vh;
-left: 100vh;
-}.bubble:nth-child(339) {
-top: 80vh;
-left: 100vh;
-}.bubble:nth-child(340) {
-top: 90vh;
-left: 100vh;
-}.bubble:nth-child(341) {
-top: -100vh;
-left: 110vh;
-}.bubble:nth-child(342) {
-top: -90vh;
-left: 110vh;
-}.bubble:nth-child(343) {
-top: -80vh;
-left: 110vh;
-}.bubble:nth-child(344) {
-top: -70vh;
-left: 110vh;
-}.bubble:nth-child(345) {
-top: -60vh;
-left: 110vh;
-}.bubble:nth-child(346) {
-top: -50vh;
-left: 110vh;
-}.bubble:nth-child(347) {
-top: -40vh;
-left: 110vh;
-}.bubble:nth-child(348) {
-top: -30vh;
-left: 110vh;
-}.bubble:nth-child(349) {
-top: -20vh;
-left: 110vh;
-}.bubble:nth-child(350) {
-top: -10vh;
-left: 110vh;
-}.bubble:nth-child(351) {
-top: 0vh;
-left: 110vh;
-}.bubble:nth-child(352) {
-top: 10vh;
-left: 110vh;
-}.bubble:nth-child(353) {
-top: 20vh;
-left: 110vh;
-}.bubble:nth-child(354) {
-top: 30vh;
-left: 110vh;
-}.bubble:nth-child(355) {
-top: 40vh;
-left: 110vh;
-}.bubble:nth-child(356) {
-top: 50vh;
-left: 110vh;
-}.bubble:nth-child(357) {
-top: 60vh;
-left: 110vh;
-}.bubble:nth-child(358) {
-top: 70vh;
-left: 110vh;
-}.bubble:nth-child(359) {
-top: 80vh;
-left: 110vh;
-}.bubble:nth-child(360) {
-top: 90vh;
-left: 110vh;
-}.bubble:nth-child(361) {
-top: -100vh;
-left: 120vh;
-}.bubble:nth-child(362) {
-top: -90vh;
-left: 120vh;
-}.bubble:nth-child(363) {
-top: -80vh;
-left: 120vh;
-}.bubble:nth-child(364) {
-top: -70vh;
-left: 120vh;
-}.bubble:nth-child(365) {
-top: -60vh;
-left: 120vh;
-}.bubble:nth-child(366) {
-top: -50vh;
-left: 120vh;
-}.bubble:nth-child(367) {
-top: -40vh;
-left: 120vh;
-}.bubble:nth-child(368) {
-top: -30vh;
-left: 120vh;
-}.bubble:nth-child(369) {
-top: -20vh;
-left: 120vh;
-}.bubble:nth-child(370) {
-top: -10vh;
-left: 120vh;
-}.bubble:nth-child(371) {
-top: 0vh;
-left: 120vh;
-}.bubble:nth-child(372) {
-top: 10vh;
-left: 120vh;
-}.bubble:nth-child(373) {
-top: 20vh;
-left: 120vh;
-}.bubble:nth-child(374) {
-top: 30vh;
-left: 120vh;
-}.bubble:nth-child(375) {
-top: 40vh;
-left: 120vh;
-}.bubble:nth-child(376) {
-top: 50vh;
-left: 120vh;
-}.bubble:nth-child(377) {
-top: 60vh;
-left: 120vh;
-}.bubble:nth-child(378) {
-top: 70vh;
-left: 120vh;
-}.bubble:nth-child(379) {
-top: 80vh;
-left: 120vh;
-}.bubble:nth-child(380) {
-top: 90vh;
-left: 120vh;
-}.bubble:nth-child(381) {
-top: -100vh;
-left: 130vh;
-}.bubble:nth-child(382) {
-top: -90vh;
-left: 130vh;
-}.bubble:nth-child(383) {
-top: -80vh;
-left: 130vh;
-}.bubble:nth-child(384) {
-top: -70vh;
-left: 130vh;
-}.bubble:nth-child(385) {
-top: -60vh;
-left: 130vh;
-}.bubble:nth-child(386) {
-top: -50vh;
-left: 130vh;
-}.bubble:nth-child(387) {
-top: -40vh;
-left: 130vh;
-}.bubble:nth-child(388) {
-top: -30vh;
-left: 130vh;
-}.bubble:nth-child(389) {
-top: -20vh;
-left: 130vh;
-}.bubble:nth-child(390) {
-top: -10vh;
-left: 130vh;
-}.bubble:nth-child(391) {
-top: 0vh;
-left: 130vh;
-}.bubble:nth-child(392) {
-top: 10vh;
-left: 130vh;
-}.bubble:nth-child(393) {
-top: 20vh;
-left: 130vh;
-}.bubble:nth-child(394) {
-top: 30vh;
-left: 130vh;
-}.bubble:nth-child(395) {
-top: 40vh;
-left: 130vh;
-}.bubble:nth-child(396) {
-top: 50vh;
-left: 130vh;
-}.bubble:nth-child(397) {
-top: 60vh;
-left: 130vh;
-}.bubble:nth-child(398) {
-top: 70vh;
-left: 130vh;
-}.bubble:nth-child(399) {
-top: 80vh;
-left: 130vh;
-}.bubble:nth-child(400) {
-top: 90vh;
-left: 130vh;
-}.bubble:nth-child(401) {
-top: -100vh;
-left: 140vh;
-}.bubble:nth-child(402) {
-top: -90vh;
-left: 140vh;
-}.bubble:nth-child(403) {
-top: -80vh;
-left: 140vh;
-}.bubble:nth-child(404) {
-top: -70vh;
-left: 140vh;
-}.bubble:nth-child(405) {
-top: -60vh;
-left: 140vh;
-}.bubble:nth-child(406) {
-top: -50vh;
-left: 140vh;
-}.bubble:nth-child(407) {
-top: -40vh;
-left: 140vh;
-}.bubble:nth-child(408) {
-top: -30vh;
-left: 140vh;
-}.bubble:nth-child(409) {
-top: -20vh;
-left: 140vh;
-}.bubble:nth-child(410) {
-top: -10vh;
-left: 140vh;
-}.bubble:nth-child(411) {
-top: 0vh;
-left: 140vh;
-}.bubble:nth-child(412) {
-top: 10vh;
-left: 140vh;
-}.bubble:nth-child(413) {
-top: 20vh;
-left: 140vh;
-}.bubble:nth-child(414) {
-top: 30vh;
-left: 140vh;
-}.bubble:nth-child(415) {
-top: 40vh;
-left: 140vh;
-}.bubble:nth-child(416) {
-top: 50vh;
-left: 140vh;
-}.bubble:nth-child(417) {
-top: 60vh;
-left: 140vh;
-}.bubble:nth-child(418) {
-top: 70vh;
-left: 140vh;
-}.bubble:nth-child(419) {
-top: 80vh;
-left: 140vh;
-}.bubble:nth-child(420) {
-top: 90vh;
-left: 140vh;
-}.bubble:nth-child(421) {
-top: -100vh;
-left: 150vh;
-}.bubble:nth-child(422) {
-top: -90vh;
-left: 150vh;
-}.bubble:nth-child(423) {
-top: -80vh;
-left: 150vh;
-}.bubble:nth-child(424) {
-top: -70vh;
-left: 150vh;
-}.bubble:nth-child(425) {
-top: -60vh;
-left: 150vh;
-}.bubble:nth-child(426) {
-top: -50vh;
-left: 150vh;
-}.bubble:nth-child(427) {
-top: -40vh;
-left: 150vh;
-}.bubble:nth-child(428) {
-top: -30vh;
-left: 150vh;
-}.bubble:nth-child(429) {
-top: -20vh;
-left: 150vh;
-}.bubble:nth-child(430) {
-top: -10vh;
-left: 150vh;
-}.bubble:nth-child(431) {
-top: 0vh;
-left: 150vh;
-}.bubble:nth-child(432) {
-top: 10vh;
-left: 150vh;
-}.bubble:nth-child(433) {
-top: 20vh;
-left: 150vh;
-}.bubble:nth-child(434) {
-top: 30vh;
-left: 150vh;
-}.bubble:nth-child(435) {
-top: 40vh;
-left: 150vh;
-}.bubble:nth-child(436) {
-top: 50vh;
-left: 150vh;
-}.bubble:nth-child(437) {
-top: 60vh;
-left: 150vh;
-}.bubble:nth-child(438) {
-top: 70vh;
-left: 150vh;
-}.bubble:nth-child(439) {
-top: 80vh;
-left: 150vh;
-}.bubble:nth-child(440) {
-top: 90vh;
-left: 150vh;
-}.bubble:nth-child(441) {
-top: -100vh;
-left: 160vh;
-}.bubble:nth-child(442) {
-top: -90vh;
-left: 160vh;
-}.bubble:nth-child(443) {
-top: -80vh;
-left: 160vh;
-}.bubble:nth-child(444) {
-top: -70vh;
-left: 160vh;
-}.bubble:nth-child(445) {
-top: -60vh;
-left: 160vh;
-}.bubble:nth-child(446) {
-top: -50vh;
-left: 160vh;
-}.bubble:nth-child(447) {
-top: -40vh;
-left: 160vh;
-}.bubble:nth-child(448) {
-top: -30vh;
-left: 160vh;
-}.bubble:nth-child(449) {
-top: -20vh;
-left: 160vh;
-}.bubble:nth-child(450) {
-top: -10vh;
-left: 160vh;
-}.bubble:nth-child(451) {
-top: 0vh;
-left: 160vh;
-}.bubble:nth-child(452) {
-top: 10vh;
-left: 160vh;
-}.bubble:nth-child(453) {
-top: 20vh;
-left: 160vh;
-}.bubble:nth-child(454) {
-top: 30vh;
-left: 160vh;
-}.bubble:nth-child(455) {
-top: 40vh;
-left: 160vh;
-}.bubble:nth-child(456) {
-top: 50vh;
-left: 160vh;
-}.bubble:nth-child(457) {
-top: 60vh;
-left: 160vh;
-}.bubble:nth-child(458) {
-top: 70vh;
-left: 160vh;
-}.bubble:nth-child(459) {
-top: 80vh;
-left: 160vh;
-}.bubble:nth-child(460) {
-top: 90vh;
-left: 160vh;
-}.bubble:nth-child(461) {
-top: -100vh;
-left: 170vh;
-}.bubble:nth-child(462) {
-top: -90vh;
-left: 170vh;
-}.bubble:nth-child(463) {
-top: -80vh;
-left: 170vh;
-}.bubble:nth-child(464) {
-top: -70vh;
-left: 170vh;
-}.bubble:nth-child(465) {
-top: -60vh;
-left: 170vh;
-}.bubble:nth-child(466) {
-top: -50vh;
-left: 170vh;
-}.bubble:nth-child(467) {
-top: -40vh;
-left: 170vh;
-}.bubble:nth-child(468) {
-top: -30vh;
-left: 170vh;
-}.bubble:nth-child(469) {
-top: -20vh;
-left: 170vh;
-}.bubble:nth-child(470) {
-top: -10vh;
-left: 170vh;
-}.bubble:nth-child(471) {
-top: 0vh;
-left: 170vh;
-}.bubble:nth-child(472) {
-top: 10vh;
-left: 170vh;
-}.bubble:nth-child(473) {
-top: 20vh;
-left: 170vh;
-}.bubble:nth-child(474) {
-top: 30vh;
-left: 170vh;
-}.bubble:nth-child(475) {
-top: 40vh;
-left: 170vh;
-}.bubble:nth-child(476) {
-top: 50vh;
-left: 170vh;
-}.bubble:nth-child(477) {
-top: 60vh;
-left: 170vh;
-}.bubble:nth-child(478) {
-top: 70vh;
-left: 170vh;
-}.bubble:nth-child(479) {
-top: 80vh;
-left: 170vh;
-}.bubble:nth-child(480) {
-top: 90vh;
-left: 170vh;
-}.bubble:nth-child(481) {
-top: -100vh;
-left: 180vh;
-}.bubble:nth-child(482) {
-top: -90vh;
-left: 180vh;
-}.bubble:nth-child(483) {
-top: -80vh;
-left: 180vh;
-}.bubble:nth-child(484) {
-top: -70vh;
-left: 180vh;
-}.bubble:nth-child(485) {
-top: -60vh;
-left: 180vh;
-}.bubble:nth-child(486) {
-top: -50vh;
-left: 180vh;
-}.bubble:nth-child(487) {
-top: -40vh;
-left: 180vh;
-}.bubble:nth-child(488) {
-top: -30vh;
-left: 180vh;
-}.bubble:nth-child(489) {
-top: -20vh;
-left: 180vh;
-}.bubble:nth-child(490) {
-top: -10vh;
-left: 180vh;
-}.bubble:nth-child(491) {
-top: 0vh;
-left: 180vh;
-}.bubble:nth-child(492) {
-top: 10vh;
-left: 180vh;
-}.bubble:nth-child(493) {
-top: 20vh;
-left: 180vh;
-}.bubble:nth-child(494) {
-top: 30vh;
-left: 180vh;
-}.bubble:nth-child(495) {
-top: 40vh;
-left: 180vh;
-}.bubble:nth-child(496) {
-top: 50vh;
-left: 180vh;
-}.bubble:nth-child(497) {
-top: 60vh;
-left: 180vh;
-}.bubble:nth-child(498) {
-top: 70vh;
-left: 180vh;
-}.bubble:nth-child(499) {
-top: 80vh;
-left: 180vh;
-}.bubble:nth-child(500) {
-top: 90vh;
-left: 180vh;
-}.bubble:nth-child(501) {
-top: -100vh;
-left: 190vh;
-}.bubble:nth-child(502) {
-top: -90vh;
-left: 190vh;
-}.bubble:nth-child(503) {
-top: -80vh;
-left: 190vh;
-}.bubble:nth-child(504) {
-top: -70vh;
-left: 190vh;
-}.bubble:nth-child(505) {
-top: -60vh;
-left: 190vh;
-}.bubble:nth-child(506) {
-top: -50vh;
-left: 190vh;
-}.bubble:nth-child(507) {
-top: -40vh;
-left: 190vh;
-}.bubble:nth-child(508) {
-top: -30vh;
-left: 190vh;
-}.bubble:nth-child(509) {
-top: -20vh;
-left: 190vh;
-}.bubble:nth-child(510) {
-top: -10vh;
-left: 190vh;
-}.bubble:nth-child(511) {
-top: 0vh;
-left: 190vh;
-}.bubble:nth-child(512) {
-top: 10vh;
-left: 190vh;
-}.bubble:nth-child(513) {
-top: 20vh;
-left: 190vh;
-}.bubble:nth-child(514) {
-top: 30vh;
-left: 190vh;
-}.bubble:nth-child(515) {
-top: 40vh;
-left: 190vh;
-}.bubble:nth-child(516) {
-top: 50vh;
-left: 190vh;
-}.bubble:nth-child(517) {
-top: 60vh;
-left: 190vh;
-}.bubble:nth-child(518) {
-top: 70vh;
-left: 190vh;
-}.bubble:nth-child(519) {
-top: 80vh;
-left: 190vh;
-}.bubble:nth-child(520) {
-top: 90vh;
-left: 190vh;
-}.bubble:nth-child(521) {
-top: -100vh;
-left: 200vh;
-}.bubble:nth-child(522) {
-top: -90vh;
-left: 200vh;
-}.bubble:nth-child(523) {
-top: -80vh;
-left: 200vh;
-}.bubble:nth-child(524) {
-top: -70vh;
-left: 200vh;
-}.bubble:nth-child(525) {
-top: -60vh;
-left: 200vh;
-}.bubble:nth-child(526) {
-top: -50vh;
-left: 200vh;
-}.bubble:nth-child(527) {
-top: -40vh;
-left: 200vh;
-}.bubble:nth-child(528) {
-top: -30vh;
-left: 200vh;
-}.bubble:nth-child(529) {
-top: -20vh;
-left: 200vh;
-}.bubble:nth-child(530) {
-top: -10vh;
-left: 200vh;
-}.bubble:nth-child(531) {
-top: 0vh;
-left: 200vh;
-}.bubble:nth-child(532) {
-top: 10vh;
-left: 200vh;
-}.bubble:nth-child(533) {
-top: 20vh;
-left: 200vh;
-}.bubble:nth-child(534) {
-top: 30vh;
-left: 200vh;
-}.bubble:nth-child(535) {
-top: 40vh;
-left: 200vh;
-}.bubble:nth-child(536) {
-top: 50vh;
-left: 200vh;
-}.bubble:nth-child(537) {
-top: 60vh;
-left: 200vh;
-}.bubble:nth-child(538) {
-top: 70vh;
-left: 200vh;
-}.bubble:nth-child(539) {
-top: 80vh;
-left: 200vh;
-}.bubble:nth-child(540) {
-top: 90vh;
-left: 200vh;
-}
 
-	@keyframes moveDiagonal {
-        0% { transform: translate(0, 0); }
-        100% { transform: translate(50vh, 50vh); }
-    }
+	.line {
+		position: absolute;
+		animation-timing-function: linear;
+		animation-iteration-count: infinite;
+		animation-fill-mode: backwards;
+		will-change: transform;
+	}
+
+	.line.h {
+		/* snap onto a dot row: dot centers sit at 12px + n*24px */
+		top: calc(round(down, var(--lane), 24px) + 12px - (var(--thick) / 2));
+		left: 0;
+		width: var(--len);
+		height: var(--thick);
+		background: linear-gradient(90deg, transparent, var(--shade) 35%, var(--shade) 65%, transparent);
+		animation-name: zip-h;
+	}
+
+	.line.h.reverse {
+		animation-name: zip-h-rev;
+	}
+
+	.line.v {
+		/* snap onto a dot column */
+		left: calc(round(down, var(--lane), 24px) + 12px - (var(--thick) / 2));
+		top: 0;
+		height: var(--len);
+		width: var(--thick);
+		background: linear-gradient(180deg, transparent, var(--shade) 35%, var(--shade) 65%, transparent);
+		animation-name: zip-v;
+	}
+
+	.line.v.reverse {
+		animation-name: zip-v-rev;
+	}
+
+	@keyframes zip-h {
+		0% {
+			transform: translateX(calc(-1 * var(--len)));
+		}
+		35% {
+			transform: translateX(100vw);
+		}
+		100% {
+			transform: translateX(100vw);
+		}
+	}
+
+	@keyframes zip-h-rev {
+		0% {
+			transform: translateX(100vw);
+		}
+		35% {
+			transform: translateX(calc(-1 * var(--len)));
+		}
+		100% {
+			transform: translateX(calc(-1 * var(--len)));
+		}
+	}
+
+	@keyframes zip-v {
+		0% {
+			transform: translateY(calc(-1 * var(--len)));
+		}
+		35% {
+			transform: translateY(100vh);
+		}
+		100% {
+			transform: translateY(100vh);
+		}
+	}
+
+	@keyframes zip-v-rev {
+		0% {
+			transform: translateY(100vh);
+		}
+		35% {
+			transform: translateY(calc(-1 * var(--len)));
+		}
+		100% {
+			transform: translateY(calc(-1 * var(--len)));
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.line {
+			animation: none;
+			opacity: 0;
+		}
+		.spark {
+			animation: none;
+		}
+	}
 </style>

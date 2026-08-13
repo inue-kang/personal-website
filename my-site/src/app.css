@@ -1,0 +1,81 @@
+/* ── Minimal black & white theme tokens ──────────────────── */
+:root {
+	--bg: #ffffff;
+	--ink: #0a0a0a;
+	--text: #0a0a0a;
+	--text-dim: #5a5a5a;
+	--accent: #0a0a0a;
+	--accent-2: #0a0a0a;
+	--card: rgba(255, 255, 255, 0.72);
+	--card-border: rgba(10, 10, 10, 0.25);
+	--surface: rgba(255, 255, 255, 0.88);
+	--veil: rgba(255, 255, 255, 0.65);
+	--wall: rgba(10, 10, 10, 0.15);
+	--dot: #dcdcdc;
+	--edge: #b0b0b0;
+	--font-display: 'Syne', sans-serif;
+	--font-body: 'Azeret Mono', monospace;
+}
+
+/* dark mode: ink-on-paper inverted. Toggled by the corner button and
+   remembered in localStorage — applied pre-paint by a script in app.html */
+html.dark {
+	--bg: #0d0d0d;
+	--ink: #f2f2f2;
+	--text: #f2f2f2;
+	--text-dim: #9f9f9f;
+	--accent: #f2f2f2;
+	--accent-2: #f2f2f2;
+	--card: rgba(255, 255, 255, 0.05);
+	--card-border: rgba(255, 255, 255, 0.22);
+	--surface: rgba(20, 20, 20, 0.88);
+	--veil: rgba(10, 10, 10, 0.65);
+	--wall: rgba(255, 255, 255, 0.16);
+	--dot: #2b2b2b;
+	--edge: #5c5c5c;
+}
+
+body {
+	margin: 0;
+	background-color: var(--bg);
+	/* light gray dot grid; the zipping lines render in front of it.
+	   fixed attachment keeps the grid aligned with the fixed line layer
+	   while the page scrolls */
+	background-image: radial-gradient(circle, var(--dot) 1.2px, transparent 1.2px);
+	background-size: 24px 24px;
+	background-attachment: fixed;
+	color: var(--text);
+	font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3 {
+	font-family: var(--font-display);
+	letter-spacing: 0.02em;
+}
+
+img {
+	max-width: 100%;
+	height: auto;
+}
+
+::selection {
+	background: var(--ink);
+	color: var(--bg);
+}
+
+/* Global scrollbar (pages override sizes where needed) */
+::-webkit-scrollbar {
+	width: 0.6vw;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background: var(--ink);
+	border-radius: 1vh;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: var(--text-dim);
+}

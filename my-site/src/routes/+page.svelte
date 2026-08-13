@@ -1,278 +1,307 @@
 <script>
-// @ts-nocheck
+	import { onMount, tick } from 'svelte';
+	import { fade } from 'svelte/transition';
+	import { separate, clampBounds, clampTarget } from '$lib/physics.js';
+	import Seo from '$lib/Seo.svelte';
+	import { draggable } from '$lib/draggable.js';
 
-    import { onMount } from 'svelte'
-    import {beforeNavigate, goto} from '$app/navigation'
+	// ── intro splash: "InK" expands to "Inue Kang", then the name glides
+	// up onto the homepage heading. Plays on every visit to the homepage. ──
+	/** @type {'logo' | 'expand' | 'drift' | 'done'} */
+	let splashPhase = $state('logo');
+	let driftStyle = $state('');
+	/** @type {HTMLElement | undefined} */
+	let heroTitle = $state();
+	/** @type {HTMLElement | undefined} */
+	let logoEl = $state();
 
-    import jump_anim1 from "$lib/assets/shibest_doggo0001.png"
-    import jump_anim2 from "$lib/assets/shibest_doggo0002.png"
-    import jump_anim3 from "$lib/assets/shibest_doggo0003.png"
-    import jump_anim4 from "$lib/assets/shibest_doggo0004.png"
-    import jump_anim5 from "$lib/assets/shibest_doggo0005.png"
-    import jump_anim6 from "$lib/assets/shibest_doggo0006.png"
-    import jump_anim7 from "$lib/assets/shibest_doggo0007.png"
-    import jump_anim8 from "$lib/assets/shibest_doggo0008.png"
-    import jump_anim9 from "$lib/assets/shibest_doggo0009.png"
-    import jump_anim10 from "$lib/assets/shibest_doggo0010.png"
-    import jump_anim11 from "$lib/assets/shibest_doggo0011.png"
-    import jump_anim12 from "$lib/assets/shibest_doggo0012.png"
-    import jump_anim13 from "$lib/assets/shibest_doggo0013.png"
-    import jump_anim14 from "$lib/assets/shibest_doggo0014.png"
-    import jump_anim15 from "$lib/assets/shibest_doggo0015.png"
-    import jump_anim16 from "$lib/assets/shibest_doggo0016.png"
-    import jump_anim17 from "$lib/assets/shibest_doggo0017.png"
-    import jump_anim18 from "$lib/assets/shibest_doggo0018.png"
-    import jump_anim19 from "$lib/assets/shibest_doggo0019.png"
-    import jump_anim20 from "$lib/assets/shibest_doggo0020.png"
-    import jump_anim21 from "$lib/assets/shibest_doggo0021.png"
-    import jump_anim22 from "$lib/assets/shibest_doggo0022.png"
-    import jump_anim23 from "$lib/assets/shibest_doggo0023.png"
-    import jump_anim24 from "$lib/assets/shibest_doggo0024.png"
-    import point_left2 from "$lib/assets/shibest_doggo0025.png"
-    import point_left1 from "$lib/assets/shibest_doggo0026.png"
-    import point_right1 from "$lib/assets/shibest_doggo0027.png"
-    import point_right2 from "$lib/assets/shibest_doggo0028.png"
+	onMount(() => {
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			splashPhase = 'expand'; // show the full name, skip the animation
+			const t = setTimeout(() => (splashPhase = 'done'), 900);
+			return () => clearTimeout(t);
+		}
+		const drift = async () => {
+			// switch the logo to the literal heading text first, so the
+			// measured geometry (and glyph spacing) matches the h1 exactly
+			splashPhase = 'drift';
+			await tick();
+			if (logoEl && heroTitle) {
+				const from = logoEl.getBoundingClientRect();
+				const to = heroTitle.getBoundingClientRect();
+				const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+				const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+				// same single-line string on both sides, so the width ratio is
+				// the exact scale (and stays correct at any viewport size)
+				const s = to.width / from.width;
+				driftStyle = `transform: translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(${s.toFixed(3)});`;
+			}
+		};
+		const t1 = setTimeout(() => (splashPhase = 'expand'), 700);
+		const t2 = setTimeout(drift, 1650);
+		const t3 = setTimeout(() => (splashPhase = 'done'), 2400);
+		return () => {
+			clearTimeout(t1);
+			clearTimeout(t2);
+			clearTimeout(t3);
+		};
+	});
 
-    /**
-	 * @type {HTMLCanvasElement}
-	 */
-    let canvas;
-    /**
-	 * @type {CanvasRenderingContext2D | null}
-	 */
-    let context;
-    
-    let animation;
-    let awards;
-    let posts;
-    let projects;
-    let about;
-    let container;
+	const links = [
+		{ id: 'projects', label: 'Projects', href: '/projects', baseR: 64, ax: 0.15, ay: 0.32 },
+		{ id: 'posts', label: 'Posts', href: '/posts', baseR: 50, ax: 0.42, ay: 0.68 },
+		{ id: 'awards', label: 'Awards', href: '/awards', baseR: 56, ax: 0.62, ay: 0.26 },
+		{ id: 'about', label: 'About', href: '/about', baseR: 53, ax: 0.85, ay: 0.62 }
+	];
 
-    let selected = false;
+	/** @type {HTMLElement | undefined} */
+	let pond = $state();
+	/** @type {any[]} */
+	let bubbles = $state([]);
+	/** @type {number} */
+	let raf;
 
-    let pointing = false;
+	onMount(() => {
+		if (!pond) return;
+		const el = pond;
+		const w0 = el.clientWidth;
+		const h0 = el.clientHeight;
+		bubbles = links.map((l, i) => ({
+			...l,
+			r: l.baseR,
+			x: l.ax * w0,
+			y: l.ay * h0,
+			vx: 0,
+			vy: 0,
+			phase: i * 2.3,
+			hold: false
+		}));
 
-    let jump_anim_cycle = [jump_anim1, jump_anim2, jump_anim3, jump_anim4, jump_anim5, jump_anim6, jump_anim7, jump_anim8, jump_anim9, jump_anim10, jump_anim11, jump_anim12, jump_anim13, jump_anim14, jump_anim15, jump_anim16, jump_anim17, jump_anim18, jump_anim19, jump_anim20, jump_anim21, jump_anim22, jump_anim23, jump_anim24]
+		let t = 0;
+		function step() {
+			t += 1 / 60;
+			const w = el.clientWidth;
+			const h = el.clientHeight;
+			const scale = window.innerWidth <= 560 ? 0.72 : 1;
 
-    onMount(() => {
+			for (const b of bubbles) {
+				b.r = b.baseR * scale;
+				const [tx, ty] = clampTarget(
+					b,
+					b.ax * w + Math.sin(t * 0.34 + b.phase) * 26,
+					b.ay * h + Math.cos(t * 0.27 + b.phase) * 20,
+					w,
+					h
+				);
+				if (!b.hold) {
+					b.vx = (b.vx + (tx - b.x) * 0.02) * 0.86;
+					b.vy = (b.vy + (ty - b.y) * 0.02) * 0.86;
+					b.x += b.vx;
+					b.y += b.vy;
+				} else {
+					b.vx *= 0.8;
+					b.vy *= 0.8;
+				}
+			}
 
-        //doobeedoo();
+			separate(bubbles, 14);
+			clampBounds(bubbles, w, h);
+		}
 
-        let frame = 0;
-        let gameFrame = 1;
-        let stagger = 16;
-        animation.src = jump_anim_cycle[frame]
-
-        function animate() {
-            if (!pointing) {
-                if (gameFrame % stagger == 0) {
-                    animation.src = jump_anim_cycle[frame]
-                    gameFrame = 0;
-                    stagger=2;
-                    if (frame < jump_anim_cycle.length-1){
-                        frame++;
-                    } else{
-                        gameFrame=0.5;
-                    }
-                }
-                gameFrame++;
-                requestAnimationFrame(animate);
-            }
-        }
-
-        animate();
-    });
-
-    function pageChange(url) {
-        let frame = 23;
-        let gameFrame = 1;
-        let stagger = 2;
-
-        function animate() {
-            animation.src = jump_anim_cycle[frame]
-            if (gameFrame % stagger == 0) {
-                 gameFrame = 0;
-                if (frame == 6) {
-                    goto(url);
-                }
-                if (frame > -1){
-                    frame--;
-                } else {
-                    
-                }
-            }
-            gameFrame++;
-            requestAnimationFrame(animate);
-        }
-
-        animate();
-
-
-    }
-
-    function enter() {
-        selected = true;
-    }
-
-    function leave() {
-        selected = false;
-    }
-    
-
-    function doobeedoo(){
-        let goopy = "";
-        for (let i = 1; i< 541; i++) {
-            goopy += ".bubble:nth-child("+i+") {\ntop: "+((((i-1)%20)*10)-100)+"vh;\nleft: "+((Math.floor((i-1)/20)*10)-60)+"vh;\n}";
-        }
-        console.log(goopy)
-    }
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			for (let k = 0; k < 240; k++) step();
+		} else {
+			const loop = () => {
+				step();
+				raf = requestAnimationFrame(loop);
+			};
+			loop();
+		}
+		return () => cancelAnimationFrame(raf);
+	});
 </script>
 
-<svelte:head>
-	<title>shibest</title>
-	<meta name="description" content="my personal website" />
-</svelte:head>
+<Seo title="Inue Kang" description="my personal website" />
 
-<!--<canvas id="animation_box" width="980" height="1080" bind:this={canvas}>
-    
-</canvas>-->
+{#if splashPhase !== 'done'}
+	<div
+		class="splash"
+		class:expand={splashPhase === 'expand' || splashPhase === 'drift'}
+		class:drift={splashPhase === 'drift'}
+		out:fade={{ duration: 250 }}
+		aria-hidden="true"
+	>
+		<span class="logo" bind:this={logoEl} style={driftStyle}>
+			{#if splashPhase === 'drift'}Inue Kang{:else}<span>In</span><span class="fill ue">ue</span><span
+					class="gap"
+				></span><span>K</span><span class="fill ang">ang</span>{/if}
+		</span>
+	</div>
+{/if}
 
-<div class="row">
-    {#if selected}
-        <div style="flex: 1%; background-color: orange; margin-left: 0.5vw; height:96vh;"></div>
-    {:else}
-        <div style="flex: 1%; background-color: black; margin-left: 0.5vw; height:96vh;"></div>
-    {/if}
-    <div style="flex: 25%;">
-        <div class="buttons" bind:this={container}>
-            <h1><b>shibest</b></h1>
-            <a class="left2" href=""
-            on:mouseenter={enter} 
-            on:mouseleave={leave}
-            on:click={(event) => pageChange("/projects")} bind:this={projects}>Projects</a>
-            <a class="right1" href=""
-            on:mouseenter={enter} 
-            on:mouseleave={leave}
-            on:click={(event) => pageChange("/posts")} bind:this={posts}>Posts</a>
-            <a class="left1" href=""
-            on:mouseenter={enter} 
-            on:mouseleave={leave}
-            on:click={(event) => pageChange("/awards")} bind:this={awards}>Awards</a>
-            <a class="right2" href=""
-            on:mouseenter={enter} 
-            on:mouseleave={leave}
-            on:click={(event) => pageChange("/about")} bind:this={about}>About</a>    
-        </div>
-        
-    </div>
-    <div style="flex: 75%">
-        <img src={jump_anim1} alt="" bind:this={animation}/>
-        <p style="position: absolute; top: 70vh; margin: 0vh 6vw; padding: 2vh 2vw; text-align: center; font-size: 1vw; background-color:rgba(255,255,255,.5); border-radius:1vw;">Hi! I am a student interested in all things computer-related, from web, software, and game development to video editing, graphics, and animation. I also dabble in cybersecurity and machine learning/AI.</p>
-    </div>
+<div class="hero">
+	<h1 bind:this={heroTitle} class:veiled={splashPhase !== 'done'}>Inue Kang</h1>
+	<p class="intro">
+		Hi! I am a student interested in all things computer-related, from web, software, and game
+		development to video editing, graphics, and animation. I also dabble in cybersecurity and
+		machine learning/AI.
+	</p>
+	<nav class="pond" bind:this={pond} aria-label="Pages">
+		{#each bubbles as b (b.id)}
+			<a
+				class="bubble"
+				href={b.href}
+				style="left: {b.x}px; top: {b.y}px; width: {b.r * 2}px; height: {b.r * 2}px; font-size: {Math.max(0.62, b.r / 64).toFixed(2)}rem;"
+				use:draggable={b}
+				onmouseenter={() => (b.hold = true)}
+				onmouseleave={() => (b.hold = false)}
+			>
+				{b.label}
+			</a>
+		{/each}
+	</nav>
 </div>
 
-
 <style>
-    .row{
-        display: flex;
-    }
-    .column1{
-        flex: 25%;
-    }
-    .column2{
-        flex:75%;
-    }
+	/* ── intro splash ────────────────────────────────────── */
+	.splash {
+		position: fixed;
+		inset: 0;
+		z-index: 200;
+		display: grid;
+		place-items: center;
+		background: #0a0a0a;
+		transition: background-color 0.6s ease;
+	}
+	.splash.drift {
+		background: transparent;
+		pointer-events: none;
+	}
 
-    img {
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-        margin-top: -4vh;
-        margin-bottom: auto;
-        width: 38vw;
-        transition: .2s;
-        /*border: 1rem black dotted;*/
-    }
-    img:hover{
-        /*width: 45%;*/
-    }
+	.logo {
+		display: flex;
+		align-items: center;
+		color: #ffffff;
+		font-family: var(--font-display);
+		font-weight: 800;
+		font-size: clamp(2.4rem, 10vw, 6.5rem);
+		letter-spacing: 0.04em; /* matches the hero h1 for a clean landing */
+		white-space: pre;
+		transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+	}
+	.splash.drift .logo {
+		color: var(--text); /* fade to ink as the backdrop clears */
+		transition:
+			transform 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+			color 0.5s ease 0.1s;
+	}
 
-    .buttons{
-        position: absolute;
-        display: inline;
-        top: 8vh;
-        left: 2vw;
-        padding-left: 1vw;
-    }
+	/* hidden letters expand out of "InK" to spell the full name */
+	.fill {
+		max-width: 0;
+		opacity: 0;
+		overflow: hidden;
+		transition:
+			max-width 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+			opacity 0.45s ease 0.12s;
+	}
+	.gap {
+		width: 0;
+		transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+	}
+	.splash.expand .ue {
+		max-width: 2.2em;
+	}
+	.splash.expand .ang {
+		max-width: 3.2em;
+	}
+	.splash.expand .fill {
+		opacity: 1;
+	}
+	.splash.expand .gap {
+		width: 0.38em;
+	}
 
-    .top {
-        display: block;
-        flex: 50%;
-    }
-    h1 {
-        text-decoration: none;
-        text-align: left;
-        /*background-color: beige;*/
-        padding: 1rem 1rem 0rem 1rem;
-        /*border: .25rem black solid;*/
-        /*border-radius: 4rem;*/
-        display: block;
-        font-size: 8vh;
-        color: black;
-    }
+	@media (prefers-reduced-motion: reduce) {
+		.fill,
+		.gap {
+			transition: none;
+		}
+	}
 
-    a{  
-        text-decoration: none;
-        text-align: left;
-        /*background-color: beige;*/
-        padding: 1rem 1rem 0rem 1rem;
-        /*border: .25rem black solid;*/
-        /*border-radius: 4rem;*/
-        display: block;
-        font-size: 8vh;
-        color: black;
-        transition: .2s;
-    }
-    a:hover{
-        /*border: .25rem orange solid;*/
-        font-size: 14vh;
-        color: orange;
-    }
-    .left2 {
-        
-    }/*
-    .left1 {
-        position:absolute;
-        text-align: center;
-        align-items: center;
-        align-self: center;
-        align-content: center;
-        align-tracks: center;
-        vertical-align: center;
-        font-size: 2rem;
-        margin-left: 32%;
-        margin-top: 10%;
-    }
-    .right1 {
-        position:absolute;
-        text-align: center;
-        align-items: center;
-        align-self: center;
-        align-content: center;
-        align-tracks: center;
-        vertical-align: center;
-        font-size: 2rem;
-        margin-left: 55%;
-        margin-top: 10%;
-    }
-    .right2 {
-        position:absolute;
-        font-size: 2rem;
-        text-decoration: none;
-        margin-left: 10%;
-        margin-right: 25%;
-        margin-top: 15%;
-    }*/
+	.hero {
+		min-height: 96vh;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 3.5vh;
+		padding: 0 6vw;
+		text-align: center;
+	}
+
+	h1 {
+		margin: 0;
+		/* single line at every viewport — the splash name lands on it */
+		font-size: clamp(2.4rem, 8vw, 6rem);
+		white-space: nowrap;
+		font-weight: 800;
+		letter-spacing: 0.04em;
+		transition: opacity 0.25s ease;
+	}
+	h1.veiled {
+		opacity: 0;
+	}
+
+	.intro {
+		margin: 0;
+		max-width: 62ch;
+		font-size: clamp(0.85rem, 1.1vw, 1.05rem);
+		line-height: 1.7;
+		color: var(--text-dim);
+	}
+
+	/* the bubbles' confined space */
+	.pond {
+		position: relative;
+		width: min(760px, 92vw);
+		height: clamp(300px, 36vh, 400px);
+		border: 1px solid var(--wall);
+		border-radius: 2rem;
+	}
+
+	.bubble {
+		position: absolute;
+		transform: translate(-50%, -50%);
+		cursor: grab;
+		touch-action: none;
+		display: grid;
+		place-items: center;
+		border-radius: 50%;
+		text-decoration: none;
+		font-family: var(--font-display);
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--ink);
+		background: var(--surface);
+		border: 1.5px solid var(--ink);
+		backdrop-filter: blur(4px);
+		transition:
+			background-color 0.2s ease,
+			color 0.2s ease;
+	}
+
+	.bubble:hover,
+	.bubble:focus-visible {
+		background: var(--ink);
+		color: var(--bg);
+		outline: none;
+	}
+
+	@media (max-width: 560px) {
+		.pond {
+			height: 420px;
+		}
+	}
 </style>
-  

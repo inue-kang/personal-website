@@ -1,259 +1,398 @@
 <script>
-    import { Medal } from "phosphor-svelte";
-    import Header from "../Header.svelte";
-	import { goto } from "$app/navigation";
+	import { onMount } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
+	import Header from '../Header.svelte';
+	import { years } from '$lib/content/awards.js';
+	import { separate, clampBounds, clampTarget } from '$lib/physics.js';
+	import { draggable } from '$lib/draggable.js';
+	import Seo from '$lib/Seo.svelte';
 
-    let d022725 = false;
-    let d021625 = false;
-    let d090824 = false;
-    let d051824 = false;
-    let d030324 = false;
-    let d011724 = false;
-    let d052023 = false;
-    let d063022 = false;
-    let d060722 = false;
-    let d052922 = false;
-    let d031922 = false;
+	const YEAR_R = 54; // px radius of a year orb
+	const NODE_R = 38; // px radius of an award node
+	const RING_PAD = 44; // gap between an orb edge and its nodes
 
-    // @ts-ignore
-    function swap(date) {
-        d022725 = false;
-        d021625 = false;
-        d090824 = false;
-        d051824 = false;
-        d030324 = false;
-        d011724 = false;
-        d052023 = false;
-        d063022 = false;
-        d060722 = false;
-        d052922 = false;
-        d031922 = false;
+	// year orbs place themselves in a two-column zigzag; rows grow with content
+	const yearRows = Math.ceil(years.length / 2);
+	/** @param {number} yi */
+	function yearAnchor(yi) {
+		const col = yi % 2;
+		const row = Math.floor(yi / 2);
+		return {
+			ax: (col === 0 ? 0.24 : 0.72) + (row % 2 ? 0.04 : -0.02),
+			ay: (row + 0.5) / yearRows
+		};
+	}
 
-        if (date == "021625") {
-            d021625 = true;
-        } else if (date == "022725") {
-            d022725 = true;
-        } else if (date == "090824") {
-            d090824 = true;
-        } else if (date == "051824") {
-            d051824 = true;
-        } else if (date == "030324") {
-            d030324 = true;
-        } else if (date == "011724") {
-            d011724 = true;
-        } else if (date == "052023") {
-            d052023 = true;
-        } else if (date == "063022") {
-            d063022 = true;
-        } else if (date == "060722") {
-            d060722 = true;
-        } else if (date == "052922") {
-            d052922 = true;
-        } else if (date == "031922") {
-            d031922 = true;
-        }
-    }
+	/** @type {HTMLElement | undefined} */
+	let container = $state();
+	/** @type {any[]} */
+	let bodies = $state([]);
+	/** @type {Record<string, any> | null} */
+	let selected = $state(null);
+	/** @type {number} */
+	let raf;
 
+	const nodes = $derived(bodies.filter((b) => b.kind === 'award'));
+
+	// shrink a node label until its longest word fits inside the circle
+	/** @param {string} name */
+	function nodeFontPx(name) {
+		const longest = Math.max(...name.split(' ').map((w) => w.length));
+		return Math.min(9.5, 58 / (0.78 * longest));
+	}
+
+	onMount(() => {
+		if (!container) return;
+		const el = container;
+		// match the CSS breakpoint (@media max-width: 700px), which is
+		// viewport-based — the container is narrower than the viewport
+		const isMobile = () => window.innerWidth <= 700;
+		const w0 = el.clientWidth;
+		const h0 = el.clientHeight;
+		const m0 = isMobile();
+
+		bodies = [];
+		years.forEach((y, yi) => {
+			const { ax, ay } = yearAnchor(yi);
+			bodies.push({
+				kind: 'year',
+				id: 'y' + y.year,
+				label: y.year,
+				r: YEAR_R,
+				ax,
+				ay,
+				yi,
+				x: (m0 ? 0.5 : ax) * w0,
+				y: (m0 ? (yi + 0.5) / years.length : ay) * h0,
+				vx: 0,
+				vy: 0,
+				phase: yi * 1.7,
+				weight: 0.15
+			});
+			// reference the reactive proxy that $state stored, NOT the raw
+			// object — the SVG edges render parent.x/parent.y, and reads
+			// through the raw object aren't tracked, freezing the lines'
+			// orb ends at their mount positions
+			const orb = bodies[bodies.length - 1];
+			y.awards.forEach((a, ai) => {
+				const angle = (ai / y.awards.length) * Math.PI * 2 + yi * 0.9;
+				const d = YEAR_R + NODE_R + RING_PAD;
+				bodies.push({
+					kind: 'award',
+					id: a.id,
+					award: a,
+					r: NODE_R,
+					parent: orb,
+					angle,
+					x: orb.x + Math.cos(angle) * d,
+					y: orb.y + Math.sin(angle) * d,
+					vx: 0,
+					vy: 0,
+					phase: ai * 2.1
+				});
+			});
+		});
+
+		let t = 0;
+		function step() {
+			t += 1 / 60;
+			const w = el.clientWidth;
+			const h = el.clientHeight;
+			const mobile = isMobile();
+
+			// pull every body toward its drifting target; on mobile the year
+			// clusters stack in a single column with generous spacing
+			for (const b of bodies) {
+				let tx, ty;
+				if (b.kind === 'year') {
+					const ax = mobile ? 0.5 : b.ax;
+					const ay = mobile ? (b.yi + 0.5) / years.length : b.ay;
+					tx = ax * w + Math.sin(t * 0.3 + b.phase) * (mobile ? 22 : 18);
+					ty = ay * h + Math.cos(t * 0.23 + b.phase) * (mobile ? 26 : 14);
+				} else {
+					const ang = b.angle + t * 0.07; // slow orbit around the year orb
+					const d = b.parent.r + b.r + (mobile ? 28 : RING_PAD);
+					tx = b.parent.x + Math.cos(ang) * d + Math.sin(t * 0.5 + b.phase) * 6;
+					ty = b.parent.y + Math.sin(ang) * d + Math.cos(t * 0.4 + b.phase) * 6;
+				}
+				const [cx, cy] = clampTarget(b, tx, ty, w, h);
+				if (!b.hold) {
+					b.vx = (b.vx + (cx - b.x) * 0.02) * 0.86;
+					b.vy = (b.vy + (cy - b.y) * 0.02) * 0.86;
+					b.x += b.vx;
+					b.y += b.vy;
+				} else {
+					b.vx *= 0.8;
+					b.vy *= 0.8;
+				}
+			}
+
+			separate(bodies, 14);
+			clampBounds(bodies, w, h);
+		}
+
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			for (let k = 0; k < 240; k++) step();
+		} else {
+			const loop = () => {
+				step();
+				raf = requestAnimationFrame(loop);
+			};
+			loop();
+		}
+		return () => cancelAnimationFrame(raf);
+	});
+
+	function close() {
+		selected = null;
+	}
 </script>
 
-<svelte:head>
-	<title>awards</title>
-	<meta name="description" content="stuff I won" />
-</svelte:head>
+<Seo title="awards" description="stuff I won" />
+
+<svelte:window onkeydown={(e) => e.key === 'Escape' && close()} />
 
 <Header></Header>
 
 <div class="content">
-    <h1>My Achievements</h1>
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <div class="awards">
-        <div class="bar-content">
-            <p class="award" on:click={()=> swap("022725")}>2/27/25 - 1st Place Overall IPC Winter Hackathon 2025</p>
-            <hr>
-            <p class="award" on:click={()=> swap("021625")}>2/16/25 - 3rd Place Group 2 EmP Hackfest AccessHack</p>
-            <hr>
-            <p class="award" on:click={()=> swap("090824")}>9/8/24 - 1st Place Group 3 EmP Hackfest SpaceHack</p>
-            <hr>
-            <p class="award" on:click={()=> swap("051824")}>5/18/24 - 1st Place Changbal Road to Tech 2024 Coding Contest</p>
-            <hr>
-            <p class="award" on:click={()=> swap("030324")}>3/3/24 - 2nd Place Design HackPNW Spring</p>
-            <hr>
-            <p class="award" on:click={()=> swap("011724")}>1/17/24 - 1st Place Overall IPC Winter Hackathon 2024</p>
-            <hr>
-            <p class="award" on:click={()=> swap("052023")}>5/20/23 - 1st Place Changbal Road to Tech 2023 Coding Contest</p>
-            <hr>
-            <p class="award" on:click={()=> swap("063022")}>6/30/22 - 2nd Place Cybersecurity National TSA Conference</p>
-            <hr>
-            <p class="award" on:click={()=> swap("060722")}>6/7/22 - 19th Place BCACTF 3.0</p>
-            <hr>
-            <p class="award" on:click={()=> swap("052922")}>5/29/22 - 13th Place BYUCTF 2022</p>
-            <hr>
-            <p class="award" on:click={()=> swap("031922")}>3/19/22 - 2nd Place Cybersecurity Washington TSA Conference</p>
-        </div>
-        <div class="award-info">
-            {#if d022725}
-                <h2>Interlake Programming Club Winter Hackathon 2025</h2>
-                <p>Local - In Person - Hackathon - Team Competition - 1st Place Overall</p>
-                <p>Group Members: shibest / ben-6</p>
-                <p>Link: <a target="_blank" href="https://ipc-mid-winter-hackathon-2025.devpost.com/">IPC Winter Hackathon (Devpost Link)</a></p>
-                <h3>Overview:</h3>
-                <p>Objective: Create the most functional and aesthetically pleasing project that aligns with the theme.</p>
-                <p>Theme: Develop a software or web-based solution that addresses weather challenges through a other solution for communities facing both extreme and routine weather challenges.</p>
-                <p>Our Project: <a target="_blank" href="https://devpost.com/software/acclimate-26zdjt">AccliMate (Devpost Link)</a></p>
-            {:else if d021625}
-                <h2>2025 EMP Hackfest - AccessHack</h2>
-                <p>Local - Online - Hackathon - Team Competition - 3rd Place - Group 2</p>
-                <p>Group Members: shibest / refact0r / arrayman</p>
-                <p>Link: <a target="_blank" href="https://emphackfest.org/february-2025">AccessHack - 8th EmP Hackfest (Main Site)</a></p>
-                <h3>Overview:</h3>
-                <p>Objective: Create the most functional and aesthetically pleasing project that aligns with the theme.</p>
-                <p>Theme: Resource Accessibility - Develop a solution that facilitates and assists in the accessibility of natural/urban resources</p>
-                <p>Our Project: <a target="_blank" href="https://devpost.com/software/pinscout?ref_content=my-projects-tab&ref_feature=my_projects">pinScout (Devpost Link)</a></p>
-            {:else if d090824}
-                <h2>2024 EMP Hackfest - SpaceHack</h2>
-                <p>Local - In Person - Hackathon - Team Competition - 1st Place - Group 3</p>
-                <p>Group Members: shibest / refact0r / static void / arrayman</p>
-                <p>Link: <a target="_blank" href="https://emphackfest.org/september-2024-1">SpaceHack - 7th EmP Hackfest (Main Site)</a></p>
-                <h3>Overview:</h3>
-                <p>Objective: Create the most functional and aesthetically pleasing project that aligns with the theme.</p>
-                <p>Theme: Develop a solution that assists in space exploration or technology.</p>
-                <p>Our Project: <a target="_blank" href="https://devpost.com/software/cmail?ref_content=my-projects-tab&ref_feature=my_projects">cmail (Devpost Link)</a></p>
-            {:else if d051824}
-                <h2>Changbal Road to Tech 2024 - Coding Contest</h2>
-                <p>Local - In Person - Coding Contest - Individual Competition - 1st Place - 12th Grade</p>
-                <p>Link: <a target="_blank">Currently Unavailable</a></p>
-                <h3>Overview:</h3>
-                <p>Objective: Get the most points from solving coding problems.</p>
-            {:else if d030324}
-                <h2>HackPNW Spring 2024</h2>
-                <p>State - In Person - Hackathon - Team Competition - 2nd Place - Design</p>
-                <p>Group Members: shibest / refact0r / ben-6 / NicoNekoru</p>
-                <p>Link: <a target="_blank" href="https://spring.2024.hackpnw.org/">HackPNW Spring 2024 (Main Site)</a></p>
-                <h3>Overview:</h3>
-                <p>Objective: Create the most functional and aesthetically pleasing project that aligns with the theme.</p>
-                <p>Theme: Education</p>
-                <p>Our Project: <a target="_blank" href="https://github.com/refact0r/papercut">papercut (Github Link)</a></p>
-            {:else if d011724}
-                <h2>Interlake Programming Club Winter Hackathon 2024</h2>
-                <p>Local - In Person - Hackathon - Team Competition - 1st Place - Overall</p>
-                <p>Group Members: shibest / refact0r / ben-6</p>
-                <p>Link: <a target="_blank" href="https://ihs-winter-hackathon.devpost.com/">IPC Winter Hackathon (Devpost Link)</a></p>
-                <h3>Overview:</h3>
-                <p>Objective: Create the most functional and aesthetically pleasing project that aligns with the theme.</p>
-                <p>Theme: Develop a technology solution (app, website, or interactive simulation/game) that addresses a specific health issue.</p>
-                <p>Our Project: <a target="_blank" href="https://devpost.com/software/respir">respir (Devpost Link)</a></p>
-            {:else if d052023}
-                <h2>Changbal Road to Tech 2023 - Coding Contest</h2>
-                <p>Local - In Person - Coding Contest - Individual Competition - 1st Place - 11th Grade</p>
-                <p>Link: <a target="_blank" href="https://www.changbal.org/post/%EC%8F%9F%EC%95%84%EC%A7%80%EB%8D%98-%ED%96%87%EC%82%B4%EC%B2%98%EB%9F%BC-%EB%9C%A8%EA%B1%B0%EC%9B%A0%EB%8D%98-%EC%B2%AB%EB%B2%88%EC%A7%B8-%EC%B0%BD%EB%B0%9C-road-to-tech%ED%96%89%EC%82%AC">Changbal Road to Tech 2023 (Main Site)</a></p>
-                <h3>Overview:</h3>
-                <p>Objective: Get the most points from solving coding problems.</p>
-            {:else if d063022}
-                <h2>2022 National Technology Student Association Cybersecurity Conference</h2>
-                <p>National - In Person - Capture The Flag - Team Competition - 2nd Place - Overall</p>
-                <p>Link: <a target="_blank" href="https://tsamembership.registermychapter.com/finalplacement/ntc2022#">2022 National TSA Conference Results (Main Site)</a></p>
-                <h3>Overview:</h3>
-                <p>Objective: Score the most points from solving different sets of cybersecurity problems.</p>
-            {:else if d060722}
-                <h2>BCACTF 3.0 2022</h2>
-                <p>National - Online - Capture The Flag - Team Competition - 19th Place - Overall</p>
-                <p>Link: <a target="_blank" href="https://ctftime.org/event/1602">BCACTF 3.0 Results (CTFtime Link)</a></p>
-                <h3>Overview:</h3>
-                <p>Objective: Score the most points from solving different sets of cybersecurity problems.</p>
-            {:else if d052922}
-                <h2>BYUCTF 2022</h2>
-                <p>National - Online - Capture The Flag - Team Competition - 13th Place - Overall</p>
-                <p>Link: <a target="_blank" href="https://ctftime.org/event/1660">BYUCTF 2022 Results (CTFtime Link)</a></p>
-                <h3>Overview:</h3>
-                <p>Objective: Score the most points from solving different sets of cybersecurity problems.</p>
-            {:else if d031922}
-                <h2>2022 Washington State Technology Student Association Cybersecurity Conference</h2>
-                <p>State - In Person - Capture The Flag - Team Competition - 2nd Place - Overall</p>
-                <p>Link: <a target="_blank">Currently Unavailable</a></p>
-                <h3>Overview:</h3>
-                <p>Objective: Score the most points from solving different sets of cybersecurity problems.</p>
-            {/if}
-        </div>
-    </div>
+	<h1>My Achievements</h1>
+	<div class="map" bind:this={container} style="--yrows: {yearRows}; --ycount: {years.length};">
+		<svg class="edges" aria-hidden="true">
+			{#each nodes as n (n.id)}
+				<line x1={n.parent.x} y1={n.parent.y} x2={n.x} y2={n.y} />
+			{/each}
+		</svg>
+		{#each bodies as b (b.id)}
+			{#if b.kind === 'year'}
+				<div
+					class="year-orb"
+					style="left: {b.x}px; top: {b.y}px; width: {b.r * 2}px; height: {b.r * 2}px;"
+					use:draggable={b}
+				>
+					{b.label}
+				</div>
+			{:else}
+				<button
+					class="node"
+					style="left: {b.x}px; top: {b.y}px; width: {b.r * 2}px; height: {b.r * 2}px;"
+					use:draggable={b}
+					onclick={() => (selected = b.award)}
+				>
+					<span class="node-name" style="font-size: {nodeFontPx(b.award.name)}px;"
+						>{b.award.name}</span
+					>
+					<span class="node-place">{b.award.place}</span>
+				</button>
+			{/if}
+		{/each}
+	</div>
 </div>
 
-
+{#if selected}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="overlay"
+		transition:fade={{ duration: 120 }}
+		onclick={(e) => e.target === e.currentTarget && close()}
+	>
+		<div
+			class="popup"
+			role="dialog"
+			aria-modal="true"
+			aria-label={selected.title}
+			transition:fly={{ y: 16, duration: 160 }}
+		>
+			<button class="close" onclick={close} aria-label="Close">&times;</button>
+			<h2>{selected.title}</h2>
+			<p class="meta">{selected.date} &middot; {selected.meta}</p>
+			{#if selected.members}
+				<p>Group Members: {selected.members}</p>
+			{/if}
+			<p>
+				Link:
+				{#if selected.link}
+					<a target="_blank" href={selected.link.href}>{selected.link.label}</a>
+				{:else}
+					Currently Unavailable
+				{/if}
+			</p>
+			<h3>Overview</h3>
+			<p>Objective: {selected.objective}</p>
+			{#if selected.theme}
+				<p>Theme: {selected.theme}</p>
+			{/if}
+			{#if selected.project}
+				<p>
+					Our Project: <a target="_blank" href={selected.project.href}>{selected.project.label}</a>
+				</p>
+			{/if}
+		</div>
+	</div>
+{/if}
 
 <style>
-    .content{
-        display: flex;
+	.content {
+		display: flex;
 		flex: 1;
 		flex-direction: column;
-        padding: 0vh 6vw;
-    }
-    h1 {
-        font-size: 3vw;
-    }
-    h2 {
-        font-size: 1.6vw;
-    }
-    h3 {
-        font-size: 1.4vw;
-    }
-    p {
-        font-size: 1vw;
-    }
-    .awards{
-        height: 75vh;
-        display: flex;
-        gap: 2%;
-    }
-    .award {
-        font-size: 1vw;
-        direction: ltr;
-        padding: .5vh 0vw;
-        color: black;
-        transition: .2s;
-        text-decoration: none;
-    }
-    .award:hover {
-        color: orange;
-        cursor: pointer;
-        text-decoration: underline;
-    }
-    .bar-content{
-        flex: 33%;
-        overflow-y: scroll;
-        background-color: rgba(255,255,255,.5);
-        padding: 2vh 2vw;
-        direction: rtl;
-        border-radius: 0vw 1vw 1vw 0vw;
-    }
-    .award-info{
-        flex:65%;
-        background-color: rgba(255,255,255,.5);
-        padding: 2vh 2vw;
-        border-radius: 1vw;
+		padding: 0vh 6vw;
+	}
+	h1 {
+		font-size: 3vw;
+	}
 
-    }
-    /* width */
-    ::-webkit-scrollbar {
-        width: .8vw;
-    }
+	.map {
+		position: relative;
+		/* grows with the number of years */
+		height: max(520px, calc(var(--yrows) * 380px));
+		border: 1px solid var(--wall);
+		border-radius: 2rem;
+		margin-bottom: 6vh;
+		overflow: hidden;
+	}
 
-    /* Track */
-    ::-webkit-scrollbar-track {
-        background: rgb(0,0,0);
-    }
+	.edges {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+	}
+	.edges line {
+		stroke: var(--edge);
+		stroke-width: 1.5;
+	}
 
-    /* Handle */
-    ::-webkit-scrollbar-thumb {
-        background-color: rgb(255, 199, 94);
-    }
+	.year-orb {
+		position: absolute;
+		transform: translate(-50%, -50%);
+		display: grid;
+		place-items: center;
+		border-radius: 50%;
+		background: var(--ink);
+		color: var(--bg);
+		font-family: var(--font-display);
+		font-weight: 800;
+		font-size: 1.15rem;
+		letter-spacing: 0.08em;
+		box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+		user-select: none;
+		cursor: grab;
+		touch-action: pan-y;
+	}
 
-    /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
-        background-color: orange;
-    }
+	.node {
+		position: absolute;
+		transform: translate(-50%, -50%);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.1rem;
+		padding: 0;
+		border-radius: 50%;
+		background: var(--surface);
+		border: 1.5px solid var(--ink);
+		backdrop-filter: blur(3px);
+		font-family: var(--font-display);
+		color: var(--ink);
+		cursor: grab;
+		touch-action: pan-y;
+		transition:
+			background-color 0.2s ease,
+			color 0.2s ease;
+	}
+	.node:hover,
+	.node:focus-visible {
+		background: var(--ink);
+		color: var(--bg);
+		outline: none;
+	}
+	.node-name {
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		max-width: 92%;
+		line-height: 1.2;
+	}
+	.node-place {
+		font-size: 0.62rem;
+		font-weight: 800;
+	}
 
-    hr{
-        border: .2vh solid black;
-    }
+	/* ── popup ───────────────────────────────────────────── */
+	.overlay {
+		position: fixed;
+		inset: 0;
+		z-index: 90;
+		display: grid;
+		place-items: center;
+		background: var(--veil);
+		backdrop-filter: blur(5px);
+		padding: 4vh 4vw;
+	}
+	.popup {
+		position: relative;
+		max-width: 640px;
+		max-height: 80vh;
+		overflow: auto;
+		background: var(--bg);
+		border: 2px solid var(--ink);
+		border-radius: 1rem;
+		padding: 2rem 2.2rem;
+		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+	}
+	.popup h2 {
+		margin: 0 0 0.4rem;
+		font-size: 1.25rem;
+		line-height: 1.35;
+	}
+	.popup h3 {
+		margin: 1.1rem 0 0.2rem;
+		font-size: 1rem;
+	}
+	.popup p {
+		margin: 0.45rem 0;
+		font-size: 0.85rem;
+		line-height: 1.6;
+	}
+	.popup .meta {
+		color: var(--text-dim);
+	}
+	.popup a {
+		color: var(--ink);
+		text-decoration: underline;
+	}
+	.popup a:hover {
+		background: var(--ink);
+		color: var(--bg);
+	}
+	.close {
+		position: absolute;
+		top: 0.7rem;
+		right: 0.9rem;
+		border: none;
+		background: none;
+		font-size: 1.6rem;
+		line-height: 1;
+		cursor: pointer;
+		color: var(--ink);
+	}
+	.close:hover {
+		scale: 1.2;
+	}
 
+	@media (max-width: 700px) {
+		h1 {
+			font-size: 1.8rem;
+		}
+		.map {
+			/* one year cluster per row */
+			height: calc(var(--ycount) * 400px);
+		}
+		.popup {
+			padding: 1.4rem 1.2rem;
+		}
+	}
 </style>

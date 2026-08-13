@@ -15,7 +15,15 @@ import img_pinscout from '$lib/assets/pinscout.C4CbqxjS.avif';
 import img_cmail from '$lib/assets/cmail.OhCrrboZ.avif';
 import img_papercut from '$lib/assets/papercut.BA6ec049.avif';
 import img_respir from '$lib/assets/respir.NzXN-C-F.avif';
-import img_tcgscout from '$lib/assets/tcgscout-homepage.png';
+import img_tcgscout_homepage from '$lib/assets/tcgscout-homepage.png';
+import img_tcgscout_pokemon from '$lib/assets/tcgscout-pokemon.png';
+import img_tcgscout_pack_subpage from '$lib/assets/tcgscout-pack-subpage.png';
+import img_tcgscout_simulate from '$lib/assets/tcgscout-simulate.png';
+import img_tcgscout_compare from '$lib/assets/tcgscout-compare.png';
+import img_tcgscout_community from '$lib/assets/tcgscout-community.png';
+import img_tcgscout_about from '$lib/assets/tcgscout-about.png';
+import img_tcgscout_signin from '$lib/assets/tcgscout-signin.png';
+
 
 export const projects = [
 	{
@@ -24,18 +32,25 @@ export const projects = [
 		tag: 'tcg product database', // short line inside the orb
 		blurb: 'a comprehensive product database for trading card games', // subtitle on the detail page
 		icon: BookBookmarkIcon, // any icon from https://phosphoricons.com (import it above)
-		links: [
-			{ label: 'site', href: 'https://www.thetcgscout.com/' }
-		],
+		links: [{ label: 'site', href: 'https://www.thetcgscout.com/' }],
 		// each string is one paragraph; plain HTML like <a> is allowed
 		body: [
 			`TCGScout is a comprehensive product database for trading card games. It provides users with detailed information about cards, sets, and products, 
 			making it easy to research and collect their favorite cards. I built this site to solve the problem of figuring out what's inside TCG products and 
 			what is the value you can expect from purchasing them. It's something I wish I had when I got back into the hobby, and I hope it can help others as well.`
 		],
-		image: img_tcgscout,
-		imageCaption: 'Homepage'
-	},{
+		images: [
+			{ image: img_tcgscout_homepage, alt: 'TCGScout homepage screenshot', caption: 'Homepage' },
+			{ image: img_tcgscout_pokemon, alt: 'TCGScout Pokemon set page screenshot', caption: 'Pokemon Set Page' },
+			{ image: img_tcgscout_pack_subpage, alt: 'TCGScout pack subpage screenshot', caption: 'Pack Subpage' },
+			{ image: img_tcgscout_simulate, alt: 'TCGScout simulate page screenshot', caption: 'Simulate Page' },
+			{ image: img_tcgscout_compare, alt: 'TCGScout compare page screenshot', caption: 'Compare Page' },
+			{ image: img_tcgscout_community, alt: 'TCGScout community page screenshot', caption: 'Community Page' },
+			{ image: img_tcgscout_about, alt: 'TCGScout about page screenshot', caption: 'About Page' },
+			{ image: img_tcgscout_signin, alt: 'TCGScout sign-in page screenshot', caption: 'Sign-In Page' }
+		]
+	},
+	{
 		slug: 'acclimate',
 		name: 'AccliMate',
 		tag: 'weather assistant', // short line inside the orb
@@ -54,8 +69,9 @@ export const projects = [
 			in your area. For more insight,
 			check out our devpost page here: <a target="_blank" href="https://devpost.com/software/acclimate-26zdjt">Devpost - Acclimate</a>.`
 		],
-		image: img_acclimate,
-		imageCaption: 'Homepage'
+		// carousel images — add more objects to add slides.
+		// alt is required (screen readers); caption is optional.
+		images: [{ image: img_acclimate, alt: 'AccliMate homepage screenshot', caption: 'Homepage' }]
 	},
 	{
 		slug: 'pinscout',
@@ -73,8 +89,7 @@ export const projects = [
 			It was built with the SvelteKit framework, and utilized Mapbox for the map API and Supabase for storing user and location information. For more insight,
 			check out refact0r's page here: <a target="_blank" href="https://refact0r.dev/projects/pinscout">refact0r.dev/projects/pinscout</a>.`
 		],
-		image: img_pinscout,
-		imageCaption: 'Homepage'
+		images: [{ image: img_pinscout, alt: 'pinScout homepage screenshot', caption: 'Homepage' }]
 	},
 	{
 		slug: 'cmail',
@@ -92,8 +107,7 @@ export const projects = [
 			the SvelteKit framework and utilized Supabase to handle message contents. For more insight,
 			check out refact0r's page here: <a target="_blank" href="https://refact0r.dev/projects/cmail">refact0r.dev/projects/cmail</a>.`
 		],
-		image: img_cmail,
-		imageCaption: 'Homepage'
+		images: [{ image: img_cmail, alt: 'cmail homepage screenshot', caption: 'Homepage' }]
 	},
 	{
 		slug: 'papercut',
@@ -111,8 +125,7 @@ export const projects = [
 			It was built with the Svelte framework and utilized ChatGPT to handle search prompts. For more insight,
 			check out refact0r's page here: <a target="_blank" href="https://refact0r.dev/projects/papercut">refact0r.dev/projects/papercut</a>.`
 		],
-		image: img_papercut,
-		imageCaption: 'Homepage'
+		images: [{ image: img_papercut, alt: 'papercut homepage screenshot', caption: 'Homepage' }]
 	},
 	{
 		slug: 'respir',
@@ -130,7 +143,6 @@ export const projects = [
 			utilized browser storage to store user-made exercises. For more insight,
 			check out refact0r's page here: <a target="_blank" href="https://refact0r.dev/projects/respir">refact0r.dev/projects/respir</a>.`
 		],
-		image: img_respir,
-		imageCaption: 'Homepage'
+		images: [{ image: img_respir, alt: 'respir homepage screenshot', caption: 'Homepage' }]
 	}
 ];

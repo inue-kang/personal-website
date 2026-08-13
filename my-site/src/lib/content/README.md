@@ -28,9 +28,11 @@ Add/remove/reorder entries in the `projects` array. Each entry:
   (the icon name + `Icon` suffix), and reference it here.
 - `links` — the buttons on the project page: `{ label, href }`.
 - `body` — array of paragraphs. Plain HTML (like `<a>`) is allowed.
-- `image` / `imageCaption` — optional screenshot. Put the file in
-  `src/lib/assets/`, import it at the top, reference it here. Remove both
-  fields for no image.
+- `images` — optional carousel: an array of `{ image, alt, caption }`
+  slides. Put files in `src/lib/assets/`, import them at the top,
+  reference them here. `alt` is required (screen readers); `caption` is
+  optional. One image shows plainly; two or more get arrows and dots.
+  Remove the field (or use `[]`) for no images.
 
 Orb positions are laid out automatically — no coordinates to manage.
 
@@ -59,18 +61,29 @@ example in the file. An empty array shows "No posts currently."
 
 - `slug` — the URL: `/posts/<slug>`. Lowercase, no spaces, must be unique.
 - `title`, `date` — shown on the note and at the top of the post page.
+- `pinned` — optional `true` pins the post: it sorts to the front of the
+  board and gets a pin icon.
 - `color` — optional sticky-note paper color (default is the classic
   yellow `#fdf2b3`).
-- `body` — array of paragraphs. Plain HTML (like `<a>`) is allowed. The
-  first paragraph doubles as the note's preview text.
+- `body` — array of paragraphs and/or images, rendered in order.
+  - a string is one paragraph; plain HTML (like `<a>`) is allowed. The
+    first paragraph doubles as the note's preview text.
+  - an image is `{ image, alt, caption }` — put the file in
+    `src/lib/assets/`, import it at the top, reference it here. `alt`
+    is required (it's what screen readers announce); `caption` is
+    optional and shown under the image.
 
 ## About (`about.js`)
 
+- `status` — array of strings shown as the "Currently" bar under the
+  heading. An empty array hides the bar.
 - `whoAmI` — array of paragraphs.
 - `skills` — array of lines.
 - `certificates` — `{ label, href }` links.
 - `miscLinks` — `{ label, text }` lines for anything else (profiles,
   playlists, resources...); add `href` to make the text a link, same as
-  `contact`. An empty array hides the section.
+  `contact`, and `icon` for a leading Phosphor icon (import it at the
+  top of the file, name + `Icon` suffix). An empty array hides the
+  section.
 - `contact` — `{ label, text }` lines; add `href` to make one a link
   (use `mailto:...` as the href for email addresses).

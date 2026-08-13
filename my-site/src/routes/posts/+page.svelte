@@ -1,9 +1,13 @@
 <script>
 	import Header from '../Header.svelte';
+	import PushPinIcon from 'phosphor-svelte/lib/PushPinIcon';
 	import { posts } from '$lib/content/posts.js';
 	import Seo from '$lib/Seo.svelte';
 
 	const DEFAULT_PAPER = '#fdf2b3';
+
+	// pinned posts first; original (newest-first) order within each group
+	const ordered = [...posts].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
 
 	// alternating gentle tilts so the board looks hand-placed
 	/** @param {number} i */
@@ -11,9 +15,11 @@
 		return (i % 2 ? 1 : -1) * (1.2 + (i % 3) * 0.8);
 	}
 
-	/** @param {string} html */
-	function excerpt(html) {
-		return html.replace(/<[^>]+>/g, '');
+	// preview text: the first paragraph (skipping any images), tags stripped
+	/** @param {(typeof posts)[number]} post */
+	function excerpt(post) {
+		const first = post.body.find((item) => typeof item === 'string') ?? '';
+		return first.replace(/<[^>]+>/g, '');
 	}
 </script>
 
@@ -23,15 +29,18 @@
 <div class="content">
 	<h1>My Posts</h1>
 	<div class="board">
-		{#each posts as post, i (post.slug)}
+		{#each ordered as post, i (post.slug)}
 			<a
 				class="note"
 				href="/posts/{post.slug}"
 				style="--tilt: {tilt(i)}deg; --paper: {post.color ?? DEFAULT_PAPER};"
 			>
+				{#if post.pinned}
+					<span class="pin" title="Pinned"><PushPinIcon weight="fill" /></span>
+				{/if}
 				<h2>{post.title}</h2>
 				<p class="date">{post.date}</p>
-				<p class="excerpt">{excerpt(post.body[0])}</p>
+				<p class="excerpt">{excerpt(post)}</p>
 				<span class="read-more">Click to read more...</span>
 			</a>
 		{:else}
@@ -99,6 +108,17 @@
 		outline: none;
 	}
 
+	/* pinned posts get a pin stuck through the top corner */
+	.pin {
+		position: absolute;
+		top: 0.45rem;
+		right: 0.7rem;
+		font-size: 1.35rem;
+		color: #0a0a0a;
+		rotate: 25deg;
+		filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+	}
+
 	.note h2 {
 		margin: 0 0 0.25rem;
 		font-size: 1.05rem;
@@ -152,7 +172,7 @@
 		border: 1px solid var(--card-border);
 		backdrop-filter: blur(10px);
 		border-radius: 2vw;
-		padding: 2vh 2vw;
+		padding: 2vh max(1.5rem, 2vw);
 	}
 	.empty p {
 		font-size: 1vw;

@@ -1,9 +1,18 @@
 <script>
 	import Header from '../../Header.svelte';
+	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeftIcon';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import Seo from '$lib/Seo.svelte';
+	import { posts } from '$lib/content/posts.js';
 
 	let { data } = $props();
 	const post = $derived(data.post);
+
+	// the posts array is newest-first: left goes newer, right goes older
+	// (chronological order — pinning only affects the board, not this)
+	const index = $derived(posts.findIndex((p) => p.slug === post.slug));
+	const newer = $derived(index > 0 ? posts[index - 1] : null);
+	const older = $derived(index < posts.length - 1 ? posts[index + 1] : null);
 </script>
 
 <Seo title="posts/{post.slug}" description="my posts: {post.title}" />
@@ -13,12 +22,36 @@
 	<article class="sheet" style="--paper: {post.color ?? '#fdf2b3'};">
 		<h1>{post.title}</h1>
 		<p class="date">{post.date}</p>
-		{#each post.body as paragraph (paragraph)}
-			<!-- content comes from our own src/lib/content files, not user input -->
-			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			<p>{@html paragraph}</p>
+		{#each post.body as item, i (i)}
+			{#if typeof item === 'string'}
+				<!-- content comes from our own src/lib/content files, not user input -->
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				<p>{@html item}</p>
+			{:else}
+				<figure>
+					<img src={item.image} alt={item.alt} />
+					{#if item.caption}<figcaption>{item.caption}</figcaption>{/if}
+				</figure>
+			{/if}
 		{/each}
 	</article>
+
+	<nav class="pager" aria-label="More posts">
+		{#if newer}
+			<a class="pager-btn" href="/posts/{newer.slug}">
+				<CaretLeftIcon weight="bold" />{newer.title}
+			</a>
+		{:else}
+			<button class="pager-btn" disabled><CaretLeftIcon weight="bold" />Newer</button>
+		{/if}
+		{#if older}
+			<a class="pager-btn" href="/posts/{older.slug}">
+				{older.title}<CaretRightIcon weight="bold" />
+			</a>
+		{:else}
+			<button class="pager-btn" disabled>Older<CaretRightIcon weight="bold" /></button>
+		{/if}
+	</nav>
 </div>
 
 <style>
@@ -34,7 +67,7 @@
 		position: relative;
 		box-sizing: border-box; /* width includes the padding — no overflow */
 		width: min(720px, 100%);
-		margin: 0 auto 8vh;
+		margin: 0 auto 3vh;
 		padding: 3.2rem 2.6rem 2.6rem;
 		background: var(--paper);
 		/* the paper stays bright in dark mode, so its text stays ink-dark */
@@ -72,6 +105,59 @@
 	.sheet :global(a) {
 		color: #0a0a0a;
 		text-decoration: underline;
+	}
+
+	figure {
+		margin: 1.2rem 0;
+	}
+	figure img {
+		display: block;
+		width: 100%;
+		border: 1px solid rgba(10, 10, 10, 0.2);
+	}
+	figcaption {
+		margin-top: 0.4rem;
+		text-align: center;
+		font-size: 0.75rem;
+		color: rgba(10, 10, 10, 0.55);
+	}
+
+	/* ── newer/older pager ───────────────────────────────── */
+	.pager {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		width: min(720px, 100%);
+		margin: 0 auto 8vh;
+	}
+	.pager-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.55rem 1.1rem;
+		border-radius: 999px;
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 0.8rem;
+		letter-spacing: 0.04em;
+		text-decoration: none;
+		color: var(--ink);
+		background: var(--surface);
+		border: 1.5px solid var(--ink);
+		cursor: pointer;
+		transition:
+			background-color 0.2s ease,
+			color 0.2s ease;
+	}
+	a.pager-btn:hover,
+	a.pager-btn:focus-visible {
+		background: var(--ink);
+		color: var(--bg);
+		outline: none;
+	}
+	.pager-btn:disabled {
+		opacity: 0.35;
+		cursor: default;
 	}
 
 	@media (max-width: 768px) {

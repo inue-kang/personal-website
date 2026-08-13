@@ -25,6 +25,14 @@ describe('projects content', () => {
 				expect(link.label, p.slug).toBeTruthy();
 				expect(link.href, p.slug).toMatch(/^https?:\/\//);
 			}
+			for (const slide of p.images ?? []) {
+				expect(slide.image, p.slug).toBeTruthy();
+				expect(slide.alt, p.slug).toBeTruthy(); // accessibility
+			}
+			// the old single-image shape is silently ignored by the carousel —
+			// fail loudly so a copied example can't hide a screenshot
+			expect('image' in p, `${p.slug}: use images: [{ image, alt, caption }]`).toBe(false);
+			expect('imageCaption' in p, `${p.slug}: use images: [{ image, alt, caption }]`).toBe(false);
 		}
 	});
 });
@@ -65,6 +73,12 @@ describe('posts content', () => {
 			expect(post.title, post.slug).toBeTruthy();
 			expect(post.date, post.slug).toBeTruthy();
 			expect(post.body.length, post.slug).toBeGreaterThan(0);
+			for (const item of post.body) {
+				if (typeof item !== 'string') {
+					expect(item.image, post.slug).toBeTruthy();
+					expect(item.alt, post.slug).toBeTruthy(); // accessibility
+				}
+			}
 		}
 	});
 });

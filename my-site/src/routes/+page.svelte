@@ -306,6 +306,7 @@
 		.hero {
 			justify-content: flex-start;
 			padding-top: 12vh;
+			padding-bottom: 8vh;
 			gap: 3vh;
 		}
 		.pond {

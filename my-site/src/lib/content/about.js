@@ -3,6 +3,13 @@
 // Each section renders as a heading + card, in order.
 // See src/lib/content/README.md for a field-by-field guide.
 // ─────────────────────────────────────────────────────────────
+import GithubLogoIcon from 'phosphor-svelte/lib/GithubLogoIcon';
+import LinkedinLogoIcon from 'phosphor-svelte/lib/LinkedinLogoIcon';
+import CardsIcon from 'phosphor-svelte/lib/CardsIcon';
+
+// current status — shown as the bar under the page heading.
+// Each string is one status pill.
+export const status = ['Full-time student', 'Employed (Paid Intern)'];
 
 export const whoAmI = [
 	`My name is Inue Kang and I am a student from the Pacific Northwest, currently attending the University of Washington in Seattle. When I'm not coding away, you'll find me attempting to make music, taking walks outside, hanging out with friends, or theorycrafting a new Magic: The Gathering deck.`,
@@ -35,11 +42,28 @@ export const certificates = [
 ];
 
 // structured like contact: text is shown as-is after the label; add href
-// to turn the text into a link. Add/remove/reorder freely.
+// to turn the text into a link. icon is any Phosphor icon component —
+// pick one at https://phosphoricons.com and import it above (name + Icon
+// suffix). Add/remove/reorder freely.
 export const miscLinks = [
-	{ label: 'GitHub', text: 'My GitHub', href: 'https://github.com/inue-kang' },
-	{ label: 'LinkedIn', text: 'My LinkedIn', href: 'https://www.linkedin.com/in/inue-kang/' },
-	{ label: 'MTG Decks', text: 'My MTG Decks', href: 'https://archidekt.com/u/InK.Decks.' }
+	{
+		label: 'GitHub',
+		text: 'My GitHub',
+		href: 'https://github.com/inue-kang',
+		icon: GithubLogoIcon
+	},
+	{
+		label: 'LinkedIn',
+		text: 'My LinkedIn',
+		href: 'https://www.linkedin.com/in/inue-kang/',
+		icon: LinkedinLogoIcon
+	},
+	{
+		label: 'MTG Decks',
+		text: 'My MTG Decks',
+		href: 'https://archidekt.com/u/InK.Decks.',
+		icon: CardsIcon
+	}
 ];
 
 // text is shown as-is; add href to turn the text into a link

@@ -150,7 +150,7 @@
 		transform: translateX(-50%);
 		width: 21rem;
 		height: 15rem;
-		z-index: 50;
+		z-index: 70; /* above the theme toggle (60) */
 		pointer-events: none;
 	}
 

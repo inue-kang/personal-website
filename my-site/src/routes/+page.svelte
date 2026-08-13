@@ -300,6 +300,14 @@
 	}
 
 	@media (max-width: 560px) {
+		/* centering squeezes the heading against the top edge on phones —
+		   top-align with a real gap instead (the splash landing follows
+		   automatically, since it measures the heading's live position) */
+		.hero {
+			justify-content: flex-start;
+			padding-top: 12vh;
+			gap: 3vh;
+		}
 		.pond {
 			height: 420px;
 		}

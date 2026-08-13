@@ -14,6 +14,20 @@
 
 	onMount(() => {
 		dark = document.documentElement.classList.contains('dark');
+
+		// warm the easter-egg frames (~75KB total) once the browser is idle,
+		// so the animation is ready the moment someone types "doggo".
+		// skipped for users on data-saver connections.
+		const saveData =
+			'connection' in navigator &&
+			/** @type {any} */ (navigator).connection?.saveData === true;
+		if (!saveData) {
+			if ('requestIdleCallback' in window) {
+				requestIdleCallback(() => preloadDogFrames(), { timeout: 8000 });
+			} else {
+				setTimeout(preloadDogFrames, 3000);
+			}
+		}
 	});
 
 	function toggleTheme() {
@@ -45,10 +59,34 @@
 	let dogBusy = false;
 	let typedBuf = '';
 
+	// the frames are 24 separate ~3KB images — on the live site the first
+	// playback would stutter as each one loads mid-animation. Fetch and
+	// decode them all up front (kicked off as soon as "dog" is typed) and
+	// keep references so the decoded bitmaps stay warm.
+	/** @type {HTMLImageElement[]} */
+	const dogImgs = [];
+	/** @type {Promise<unknown> | null} */
+	let dogPreload = null;
+
+	function preloadDogFrames() {
+		if (!dogPreload) {
+			dogPreload = Promise.all(
+				dogFrames.map((src) => {
+					const img = new Image();
+					img.src = src;
+					dogImgs.push(img);
+					return img.decode().catch(() => {});
+				})
+			);
+		}
+		return dogPreload;
+	}
+
 	/** @param {KeyboardEvent} e */
 	function onKeydown(e) {
 		if (e.key && e.key.length === 1) {
 			typedBuf = (typedBuf + e.key.toLowerCase()).slice(-5);
+			if (typedBuf.endsWith('dog')) preloadDogFrames();
 			if (typedBuf === 'doggo') {
 				typedBuf = '';
 				summonDoggo();
@@ -56,9 +94,10 @@
 		}
 	}
 
-	function summonDoggo() {
+	async function summonDoggo() {
 		if (dogBusy || dogFrames.length === 0) return;
 		dogBusy = true;
+		await preloadDogFrames(); // never start playback with cold frames
 		dogShown = true;
 		let frame = 0;
 		let tick = 0;

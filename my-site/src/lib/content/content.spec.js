@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { projects } from './projects.js';
 import { years } from './awards.js';
 import { posts } from './posts.js';
-import { whoAmI, skills, certificates, contact } from './about.js';
+import { whoAmI, skills, certificates, miscLinks, contact } from './about.js';
 
 describe('projects content', () => {
 	it('has unique, url-safe slugs', () => {
@@ -76,5 +76,10 @@ describe('about content', () => {
 		expect(certificates.length).toBeGreaterThan(0);
 		expect(contact.length).toBeGreaterThan(0);
 		for (const cert of certificates) expect(cert.href).toMatch(/^https?:\/\//);
+		for (const link of miscLinks) {
+			expect(link.label).toBeTruthy();
+			expect(link.text).toBeTruthy();
+			if (link.href) expect(link.href).toMatch(/^(https?:\/\/|mailto:)/);
+		}
 	});
 });

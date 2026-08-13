@@ -69,5 +69,8 @@ example in the file. An empty array shows "No posts currently."
 - `whoAmI` — array of paragraphs.
 - `skills` — array of lines.
 - `certificates` — `{ label, href }` links.
+- `miscLinks` — `{ label, text }` lines for anything else (profiles,
+  playlists, resources...); add `href` to make the text a link, same as
+  `contact`. An empty array hides the section.
 - `contact` — `{ label, text }` lines; add `href` to make one a link
   (use `mailto:...` as the href for email addresses).

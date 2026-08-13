@@ -34,6 +34,14 @@ export const certificates = [
 	}
 ];
 
+// structured like contact: text is shown as-is after the label; add href
+// to turn the text into a link. Add/remove/reorder freely.
+export const miscLinks = [
+	{ label: 'GitHub', text: 'My GitHub', href: 'https://github.com/inue-kang' },
+	{ label: 'LinkedIn', text: 'My LinkedIn', href: 'https://www.linkedin.com/in/inue-kang/' },
+	{ label: 'MTG Decks', text: 'My MTG Decks', href: 'https://archidekt.com/u/InK.Decks.' }
+];
+
 // text is shown as-is; add href to turn the text into a link
 // (use a mailto: href for email addresses)
 export const contact = [
@@ -42,6 +50,5 @@ export const contact = [
 		label: 'Email',
 		text: 'contact@inuekang.dev',
 		href: 'mailto:contact@inuekang.dev'
-	},
-	{ label: 'LinkedIn', text: 'My LinkedIn', href: 'https://www.linkedin.com/in/inue-kang/' }
+	}
 ];

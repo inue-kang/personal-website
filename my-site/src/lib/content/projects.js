@@ -43,7 +43,7 @@ export const projects = [
 		icon: CloudSunIcon, // any icon from https://phosphoricons.com (import it above)
 		links: [
 			{ label: 'site', href: 'https://acclimate.vercel.app/' },
-			{ label: 'github', href: 'https://github.com/shibest/ipc-hackathon-2025' }
+			{ label: 'github', href: 'https://github.com/inue-kang/ipc-hackathon-2025' }
 		],
 		// each string is one paragraph; plain HTML like <a> is allowed
 		body: [

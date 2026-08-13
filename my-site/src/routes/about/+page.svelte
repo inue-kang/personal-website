@@ -1,7 +1,7 @@
 <script>
 	import Header from '../Header.svelte';
 	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
-	import { whoAmI, skills, certificates, contact } from '$lib/content/about.js';
+	import { whoAmI, skills, certificates, miscLinks, contact } from '$lib/content/about.js';
 	import Seo from '$lib/Seo.svelte';
 </script>
 
@@ -29,6 +29,24 @@
 				<p><a target="_blank" href={cert.href}>{cert.label}<ArrowSquareOutIcon /></a></p>
 			{/each}
 		</div>
+		{#if miscLinks.length}
+			<h2>Misc Links</h2>
+			<div class="info">
+				{#each miscLinks as entry (entry.label)}
+					<p>
+						{entry.label}:
+						{#if entry.href}
+							<a
+								target={entry.href.startsWith('mailto:') ? undefined : '_blank'}
+								href={entry.href}>{entry.text}</a
+							>
+						{:else}
+							{entry.text}
+						{/if}
+					</p>
+				{/each}
+			</div>
+		{/if}
 		<h2>Contact Me</h2>
 		<div class="info">
 			{#each contact as entry (entry.label)}

@@ -32,7 +32,7 @@
 	}
 </script>
 
-<Seo title="projects/{project.slug}" description="my projects: {project.name}" />
+<Seo title="{project.name} — Inue Kang" description={project.blurb} />
 
 <Header></Header>
 <div class="content">

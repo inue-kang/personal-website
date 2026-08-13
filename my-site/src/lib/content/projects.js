@@ -10,19 +10,19 @@ import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 import WindIcon from 'phosphor-svelte/lib/WindIcon';
 import BookBookmarkIcon from 'phosphor-svelte/lib/BookBookmarkIcon';
 
-import img_acclimate from '$lib/assets/acclimate.jpg';
+import img_acclimate from '$lib/assets/acclimate.avif';
 import img_pinscout from '$lib/assets/pinscout.C4CbqxjS.avif';
 import img_cmail from '$lib/assets/cmail.OhCrrboZ.avif';
 import img_papercut from '$lib/assets/papercut.BA6ec049.avif';
 import img_respir from '$lib/assets/respir.NzXN-C-F.avif';
-import img_tcgscout_homepage from '$lib/assets/tcgscout-homepage.png';
-import img_tcgscout_pokemon from '$lib/assets/tcgscout-pokemon.png';
-import img_tcgscout_pack_subpage from '$lib/assets/tcgscout-pack-subpage.png';
-import img_tcgscout_simulate from '$lib/assets/tcgscout-simulate.png';
-import img_tcgscout_compare from '$lib/assets/tcgscout-compare.png';
-import img_tcgscout_community from '$lib/assets/tcgscout-community.png';
-import img_tcgscout_about from '$lib/assets/tcgscout-about.png';
-import img_tcgscout_signin from '$lib/assets/tcgscout-signin.png';
+import img_tcgscout_homepage from '$lib/assets/tcgscout-homepage.avif';
+import img_tcgscout_pokemon from '$lib/assets/tcgscout-pokemon.avif';
+import img_tcgscout_pack_subpage from '$lib/assets/tcgscout-pack-subpage.avif';
+import img_tcgscout_simulate from '$lib/assets/tcgscout-simulate.avif';
+import img_tcgscout_compare from '$lib/assets/tcgscout-compare.avif';
+import img_tcgscout_community from '$lib/assets/tcgscout-community.avif';
+import img_tcgscout_about from '$lib/assets/tcgscout-about.avif';
+import img_tcgscout_signin from '$lib/assets/tcgscout-signin.avif';
 
 
 export const projects = [

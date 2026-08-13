@@ -15,7 +15,7 @@
 	onMount(() => {
 		dark = document.documentElement.classList.contains('dark');
 
-		// warm the easter-egg frames (~75KB total) once the browser is idle,
+		// warm the easter-egg frames (~285KB total) once the browser is idle,
 		// so the animation is ready the moment someone types "doggo".
 		// skipped for users on data-saver connections.
 		const saveData =
@@ -44,7 +44,7 @@
 	// the original site's shiba jumps up from the bottom, hangs out
 	// for a second, then drops back down
 	const dogFrames = Object.entries(
-		import.meta.glob('../lib/assets/shibest_doggo00*.png', {
+		import.meta.glob('../lib/assets/shibest_doggo00*.avif', {
 			eager: true,
 			query: '?url',
 			import: 'default'
@@ -59,7 +59,7 @@
 	let dogBusy = false;
 	let typedBuf = '';
 
-	// the frames are 24 separate ~3KB images — on the live site the first
+	// the frames are 24 separate small AVIFs — on the live site the first
 	// playback would stutter as each one loads mid-animation. Fetch and
 	// decode them all up front (kicked off as soon as "dog" is typed) and
 	// keep references so the decoded bitmaps stay warm.

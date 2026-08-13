@@ -121,7 +121,11 @@
 	});
 </script>
 
-<Seo title="Inue Kang" description="my personal website" />
+<Seo
+	title="Inue Kang"
+	description="The personal website of Inue Kang — student and developer. Projects, posts, awards, and more."
+	person
+/>
 
 {#if splashPhase !== 'done'}
 	<div

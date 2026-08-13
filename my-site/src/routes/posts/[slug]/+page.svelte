@@ -8,6 +8,13 @@
 	let { data } = $props();
 	const post = $derived(data.post);
 
+	// search snippet: the first text paragraph, tags stripped
+	const description = $derived(
+		(post.body.find((item) => typeof item === 'string') ?? '')
+			.replace(/<[^>]+>/g, '')
+			.slice(0, 160)
+	);
+
 	// the posts array is newest-first: left goes newer, right goes older
 	// (chronological order — pinning only affects the board, not this)
 	const index = $derived(posts.findIndex((p) => p.slug === post.slug));
@@ -15,7 +22,7 @@
 	const older = $derived(index < posts.length - 1 ? posts[index + 1] : null);
 </script>
 
-<Seo title="posts/{post.slug}" description="my posts: {post.title}" />
+<Seo title="{post.title} — Inue Kang" description={description} />
 
 <Header></Header>
 <div class="content">

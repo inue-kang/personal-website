@@ -99,7 +99,7 @@
 	});
 </script>
 
-<Seo title="projects" description="my projects" />
+<Seo title="Projects — Inue Kang" description="my projects" />
 
 <Header></Header>
 <div class="content">

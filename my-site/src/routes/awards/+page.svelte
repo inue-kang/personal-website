@@ -148,7 +148,7 @@
 	}
 </script>
 
-<Seo title="awards" description="stuff I won" />
+<Seo title="Awards — Inue Kang" description="stuff I won" />
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && close()} />
 

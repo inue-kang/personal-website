@@ -191,7 +191,7 @@
 		burst(x, y);
 	}
 
-	// page transition: a white sheet slides over the old page, the route
+	// page transition: a sheet slides over the old page, the route
 	// swaps beneath it, then the sheet slides off the other side.
 	// onNavigate's returned promise holds the swap until the cover is across.
 	/** @type {'rest' | 'in' | 'out'} */

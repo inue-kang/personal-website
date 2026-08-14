@@ -5,7 +5,7 @@
 	import Seo from '$lib/Seo.svelte';
 </script>
 
-<Seo title="about" description="more about me" />
+<Seo title="About — Inue Kang" description="more about me" />
 
 <Header></Header>
 <div class="content">

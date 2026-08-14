@@ -23,7 +23,7 @@
 	}
 </script>
 
-<Seo title="posts" description="my posts" />
+<Seo title="Posts — Inue Kang" description="my posts" />
 
 <Header></Header>
 <div class="content">
